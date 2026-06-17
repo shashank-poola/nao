@@ -13,24 +13,34 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as EmbedRouteImport } from './routes/embed'
+import { Route as ConsentRouteImport } from './routes/consent'
 import { Route as SidebarLayoutRouteImport } from './routes/_sidebar-layout'
 import { Route as SidebarLayoutSettingsRouteImport } from './routes/_sidebar-layout.settings'
 import { Route as SidebarLayoutChatLayoutRouteImport } from './routes/_sidebar-layout._chat-layout'
 import { Route as SidebarLayoutStoriesIndexRouteImport } from './routes/_sidebar-layout.stories.index'
 import { Route as SidebarLayoutSettingsIndexRouteImport } from './routes/_sidebar-layout.settings.index'
+import { Route as SidebarLayoutFeedIndexRouteImport } from './routes/_sidebar-layout.feed.index'
 import { Route as SidebarLayoutChatLayoutIndexRouteImport } from './routes/_sidebar-layout._chat-layout.index'
+import { Route as EmbedStoryStoryIdRouteImport } from './routes/embed.story.$storyId'
+import { Route as EmbedChartChartEmbedIdRouteImport } from './routes/embed.chart.$chartEmbedId'
 import { Route as SidebarLayoutSharedChatShareIdRouteImport } from './routes/_sidebar-layout.shared-chat.$shareId'
+import { Route as SidebarLayoutSettingsWhiteLabelRouteImport } from './routes/_sidebar-layout.settings.white-label'
 import { Route as SidebarLayoutSettingsUsageRouteImport } from './routes/_sidebar-layout.settings.usage'
+import { Route as SidebarLayoutSettingsRecommendationsRouteImport } from './routes/_sidebar-layout.settings.recommendations'
 import { Route as SidebarLayoutSettingsProjectRouteImport } from './routes/_sidebar-layout.settings.project'
 import { Route as SidebarLayoutSettingsOrganizationRouteImport } from './routes/_sidebar-layout.settings.organization'
 import { Route as SidebarLayoutSettingsMemoryRouteImport } from './routes/_sidebar-layout.settings.memory'
+import { Route as SidebarLayoutSettingsMcpEndpointRouteImport } from './routes/_sidebar-layout.settings.mcp-endpoint'
 import { Route as SidebarLayoutSettingsLogsRouteImport } from './routes/_sidebar-layout.settings.logs'
 import { Route as SidebarLayoutSettingsEnterpriseRouteImport } from './routes/_sidebar-layout.settings.enterprise'
 import { Route as SidebarLayoutSettingsContextExplorerRouteImport } from './routes/_sidebar-layout.settings.context-explorer'
 import { Route as SidebarLayoutSettingsChatsReplayRouteImport } from './routes/_sidebar-layout.settings.chats-replay'
 import { Route as SidebarLayoutSettingsAccountRouteImport } from './routes/_sidebar-layout.settings.account'
+import { Route as SidebarLayoutAutomationsAutomationIdRouteImport } from './routes/_sidebar-layout.automations.$automationId'
 import { Route as SidebarLayoutChatLayoutChatIdRouteImport } from './routes/_sidebar-layout._chat-layout.$chatId'
 import { Route as SidebarLayoutSettingsProjectIndexRouteImport } from './routes/_sidebar-layout.settings.project.index'
+import { Route as SidebarLayoutStoriesStandaloneStoryIdRouteImport } from './routes/_sidebar-layout.stories.standalone.$storyId'
 import { Route as SidebarLayoutStoriesSharedShareIdRouteImport } from './routes/_sidebar-layout.stories.shared.$shareId'
 import { Route as SidebarLayoutSettingsProjectWhatsappRouteImport } from './routes/_sidebar-layout.settings.project.whatsapp'
 import { Route as SidebarLayoutSettingsProjectTelegramRouteImport } from './routes/_sidebar-layout.settings.project.telegram'
@@ -39,6 +49,7 @@ import { Route as SidebarLayoutSettingsProjectTeamRouteImport } from './routes/_
 import { Route as SidebarLayoutSettingsProjectSlackRouteImport } from './routes/_sidebar-layout.settings.project.slack'
 import { Route as SidebarLayoutSettingsProjectModelsRouteImport } from './routes/_sidebar-layout.settings.project.models'
 import { Route as SidebarLayoutSettingsProjectMcpServersRouteImport } from './routes/_sidebar-layout.settings.project.mcp-servers'
+import { Route as SidebarLayoutSettingsProjectMcpEndpointRouteImport } from './routes/_sidebar-layout.settings.project.mcp-endpoint'
 import { Route as SidebarLayoutSettingsProjectBudgetsRouteImport } from './routes/_sidebar-layout.settings.project.budgets'
 import { Route as SidebarLayoutSettingsProjectAgentRouteImport } from './routes/_sidebar-layout.settings.project.agent'
 import { Route as SidebarLayoutStoriesPreviewChatIdStorySlugRouteImport } from './routes/_sidebar-layout.stories.preview.$chatId.$storySlug'
@@ -61,6 +72,16 @@ const LoginRoute = LoginRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmbedRoute = EmbedRouteImport.update({
+  id: '/embed',
+  path: '/embed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConsentRoute = ConsentRouteImport.update({
+  id: '/consent',
+  path: '/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SidebarLayoutRoute = SidebarLayoutRouteImport.update({
@@ -88,22 +109,49 @@ const SidebarLayoutSettingsIndexRoute =
     path: '/',
     getParentRoute: () => SidebarLayoutSettingsRoute,
   } as any)
+const SidebarLayoutFeedIndexRoute = SidebarLayoutFeedIndexRouteImport.update({
+  id: '/feed/',
+  path: '/feed/',
+  getParentRoute: () => SidebarLayoutRoute,
+} as any)
 const SidebarLayoutChatLayoutIndexRoute =
   SidebarLayoutChatLayoutIndexRouteImport.update({
     id: '/',
     path: '/',
     getParentRoute: () => SidebarLayoutChatLayoutRoute,
   } as any)
+const EmbedStoryStoryIdRoute = EmbedStoryStoryIdRouteImport.update({
+  id: '/story/$storyId',
+  path: '/story/$storyId',
+  getParentRoute: () => EmbedRoute,
+} as any)
+const EmbedChartChartEmbedIdRoute = EmbedChartChartEmbedIdRouteImport.update({
+  id: '/chart/$chartEmbedId',
+  path: '/chart/$chartEmbedId',
+  getParentRoute: () => EmbedRoute,
+} as any)
 const SidebarLayoutSharedChatShareIdRoute =
   SidebarLayoutSharedChatShareIdRouteImport.update({
     id: '/shared-chat/$shareId',
     path: '/shared-chat/$shareId',
     getParentRoute: () => SidebarLayoutRoute,
   } as any)
+const SidebarLayoutSettingsWhiteLabelRoute =
+  SidebarLayoutSettingsWhiteLabelRouteImport.update({
+    id: '/white-label',
+    path: '/white-label',
+    getParentRoute: () => SidebarLayoutSettingsRoute,
+  } as any)
 const SidebarLayoutSettingsUsageRoute =
   SidebarLayoutSettingsUsageRouteImport.update({
     id: '/usage',
     path: '/usage',
+    getParentRoute: () => SidebarLayoutSettingsRoute,
+  } as any)
+const SidebarLayoutSettingsRecommendationsRoute =
+  SidebarLayoutSettingsRecommendationsRouteImport.update({
+    id: '/recommendations',
+    path: '/recommendations',
     getParentRoute: () => SidebarLayoutSettingsRoute,
   } as any)
 const SidebarLayoutSettingsProjectRoute =
@@ -122,6 +170,12 @@ const SidebarLayoutSettingsMemoryRoute =
   SidebarLayoutSettingsMemoryRouteImport.update({
     id: '/memory',
     path: '/memory',
+    getParentRoute: () => SidebarLayoutSettingsRoute,
+  } as any)
+const SidebarLayoutSettingsMcpEndpointRoute =
+  SidebarLayoutSettingsMcpEndpointRouteImport.update({
+    id: '/mcp-endpoint',
+    path: '/mcp-endpoint',
     getParentRoute: () => SidebarLayoutSettingsRoute,
   } as any)
 const SidebarLayoutSettingsLogsRoute =
@@ -154,6 +208,12 @@ const SidebarLayoutSettingsAccountRoute =
     path: '/account',
     getParentRoute: () => SidebarLayoutSettingsRoute,
   } as any)
+const SidebarLayoutAutomationsAutomationIdRoute =
+  SidebarLayoutAutomationsAutomationIdRouteImport.update({
+    id: '/automations/$automationId',
+    path: '/automations/$automationId',
+    getParentRoute: () => SidebarLayoutRoute,
+  } as any)
 const SidebarLayoutChatLayoutChatIdRoute =
   SidebarLayoutChatLayoutChatIdRouteImport.update({
     id: '/$chatId',
@@ -165,6 +225,12 @@ const SidebarLayoutSettingsProjectIndexRoute =
     id: '/',
     path: '/',
     getParentRoute: () => SidebarLayoutSettingsProjectRoute,
+  } as any)
+const SidebarLayoutStoriesStandaloneStoryIdRoute =
+  SidebarLayoutStoriesStandaloneStoryIdRouteImport.update({
+    id: '/stories/standalone/$storyId',
+    path: '/stories/standalone/$storyId',
+    getParentRoute: () => SidebarLayoutRoute,
   } as any)
 const SidebarLayoutStoriesSharedShareIdRoute =
   SidebarLayoutStoriesSharedShareIdRouteImport.update({
@@ -214,6 +280,12 @@ const SidebarLayoutSettingsProjectMcpServersRoute =
     path: '/mcp-servers',
     getParentRoute: () => SidebarLayoutSettingsProjectRoute,
   } as any)
+const SidebarLayoutSettingsProjectMcpEndpointRoute =
+  SidebarLayoutSettingsProjectMcpEndpointRouteImport.update({
+    id: '/mcp-endpoint',
+    path: '/mcp-endpoint',
+    getParentRoute: () => SidebarLayoutSettingsProjectRoute,
+  } as any)
 const SidebarLayoutSettingsProjectBudgetsRoute =
   SidebarLayoutSettingsProjectBudgetsRouteImport.update({
     id: '/budgets',
@@ -235,26 +307,36 @@ const SidebarLayoutStoriesPreviewChatIdStorySlugRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof SidebarLayoutChatLayoutIndexRoute
+  '/consent': typeof ConsentRoute
+  '/embed': typeof EmbedRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/settings': typeof SidebarLayoutSettingsRouteWithChildren
   '/$chatId': typeof SidebarLayoutChatLayoutChatIdRoute
+  '/automations/$automationId': typeof SidebarLayoutAutomationsAutomationIdRoute
   '/settings/account': typeof SidebarLayoutSettingsAccountRoute
   '/settings/chats-replay': typeof SidebarLayoutSettingsChatsReplayRoute
   '/settings/context-explorer': typeof SidebarLayoutSettingsContextExplorerRoute
   '/settings/enterprise': typeof SidebarLayoutSettingsEnterpriseRoute
   '/settings/logs': typeof SidebarLayoutSettingsLogsRoute
+  '/settings/mcp-endpoint': typeof SidebarLayoutSettingsMcpEndpointRoute
   '/settings/memory': typeof SidebarLayoutSettingsMemoryRoute
   '/settings/organization': typeof SidebarLayoutSettingsOrganizationRoute
   '/settings/project': typeof SidebarLayoutSettingsProjectRouteWithChildren
+  '/settings/recommendations': typeof SidebarLayoutSettingsRecommendationsRoute
   '/settings/usage': typeof SidebarLayoutSettingsUsageRoute
+  '/settings/white-label': typeof SidebarLayoutSettingsWhiteLabelRoute
   '/shared-chat/$shareId': typeof SidebarLayoutSharedChatShareIdRoute
+  '/embed/chart/$chartEmbedId': typeof EmbedChartChartEmbedIdRoute
+  '/embed/story/$storyId': typeof EmbedStoryStoryIdRoute
+  '/feed/': typeof SidebarLayoutFeedIndexRoute
   '/settings/': typeof SidebarLayoutSettingsIndexRoute
   '/stories/': typeof SidebarLayoutStoriesIndexRoute
   '/settings/project/agent': typeof SidebarLayoutSettingsProjectAgentRoute
   '/settings/project/budgets': typeof SidebarLayoutSettingsProjectBudgetsRoute
+  '/settings/project/mcp-endpoint': typeof SidebarLayoutSettingsProjectMcpEndpointRoute
   '/settings/project/mcp-servers': typeof SidebarLayoutSettingsProjectMcpServersRoute
   '/settings/project/models': typeof SidebarLayoutSettingsProjectModelsRoute
   '/settings/project/slack': typeof SidebarLayoutSettingsProjectSlackRoute
@@ -263,29 +345,40 @@ export interface FileRoutesByFullPath {
   '/settings/project/telegram': typeof SidebarLayoutSettingsProjectTelegramRoute
   '/settings/project/whatsapp': typeof SidebarLayoutSettingsProjectWhatsappRoute
   '/stories/shared/$shareId': typeof SidebarLayoutStoriesSharedShareIdRoute
+  '/stories/standalone/$storyId': typeof SidebarLayoutStoriesStandaloneStoryIdRoute
   '/settings/project/': typeof SidebarLayoutSettingsProjectIndexRoute
   '/stories/preview/$chatId/$storySlug': typeof SidebarLayoutStoriesPreviewChatIdStorySlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof SidebarLayoutChatLayoutIndexRoute
+  '/consent': typeof ConsentRoute
+  '/embed': typeof EmbedRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
   '/$chatId': typeof SidebarLayoutChatLayoutChatIdRoute
+  '/automations/$automationId': typeof SidebarLayoutAutomationsAutomationIdRoute
   '/settings/account': typeof SidebarLayoutSettingsAccountRoute
   '/settings/chats-replay': typeof SidebarLayoutSettingsChatsReplayRoute
   '/settings/context-explorer': typeof SidebarLayoutSettingsContextExplorerRoute
   '/settings/enterprise': typeof SidebarLayoutSettingsEnterpriseRoute
   '/settings/logs': typeof SidebarLayoutSettingsLogsRoute
+  '/settings/mcp-endpoint': typeof SidebarLayoutSettingsMcpEndpointRoute
   '/settings/memory': typeof SidebarLayoutSettingsMemoryRoute
   '/settings/organization': typeof SidebarLayoutSettingsOrganizationRoute
+  '/settings/recommendations': typeof SidebarLayoutSettingsRecommendationsRoute
   '/settings/usage': typeof SidebarLayoutSettingsUsageRoute
+  '/settings/white-label': typeof SidebarLayoutSettingsWhiteLabelRoute
   '/shared-chat/$shareId': typeof SidebarLayoutSharedChatShareIdRoute
+  '/embed/chart/$chartEmbedId': typeof EmbedChartChartEmbedIdRoute
+  '/embed/story/$storyId': typeof EmbedStoryStoryIdRoute
+  '/feed': typeof SidebarLayoutFeedIndexRoute
   '/settings': typeof SidebarLayoutSettingsIndexRoute
   '/stories': typeof SidebarLayoutStoriesIndexRoute
   '/settings/project/agent': typeof SidebarLayoutSettingsProjectAgentRoute
   '/settings/project/budgets': typeof SidebarLayoutSettingsProjectBudgetsRoute
+  '/settings/project/mcp-endpoint': typeof SidebarLayoutSettingsProjectMcpEndpointRoute
   '/settings/project/mcp-servers': typeof SidebarLayoutSettingsProjectMcpServersRoute
   '/settings/project/models': typeof SidebarLayoutSettingsProjectModelsRoute
   '/settings/project/slack': typeof SidebarLayoutSettingsProjectSlackRoute
@@ -294,12 +387,15 @@ export interface FileRoutesByTo {
   '/settings/project/telegram': typeof SidebarLayoutSettingsProjectTelegramRoute
   '/settings/project/whatsapp': typeof SidebarLayoutSettingsProjectWhatsappRoute
   '/stories/shared/$shareId': typeof SidebarLayoutStoriesSharedShareIdRoute
+  '/stories/standalone/$storyId': typeof SidebarLayoutStoriesStandaloneStoryIdRoute
   '/settings/project': typeof SidebarLayoutSettingsProjectIndexRoute
   '/stories/preview/$chatId/$storySlug': typeof SidebarLayoutStoriesPreviewChatIdStorySlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_sidebar-layout': typeof SidebarLayoutRouteWithChildren
+  '/consent': typeof ConsentRoute
+  '/embed': typeof EmbedRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -307,21 +403,29 @@ export interface FileRoutesById {
   '/_sidebar-layout/_chat-layout': typeof SidebarLayoutChatLayoutRouteWithChildren
   '/_sidebar-layout/settings': typeof SidebarLayoutSettingsRouteWithChildren
   '/_sidebar-layout/_chat-layout/$chatId': typeof SidebarLayoutChatLayoutChatIdRoute
+  '/_sidebar-layout/automations/$automationId': typeof SidebarLayoutAutomationsAutomationIdRoute
   '/_sidebar-layout/settings/account': typeof SidebarLayoutSettingsAccountRoute
   '/_sidebar-layout/settings/chats-replay': typeof SidebarLayoutSettingsChatsReplayRoute
   '/_sidebar-layout/settings/context-explorer': typeof SidebarLayoutSettingsContextExplorerRoute
   '/_sidebar-layout/settings/enterprise': typeof SidebarLayoutSettingsEnterpriseRoute
   '/_sidebar-layout/settings/logs': typeof SidebarLayoutSettingsLogsRoute
+  '/_sidebar-layout/settings/mcp-endpoint': typeof SidebarLayoutSettingsMcpEndpointRoute
   '/_sidebar-layout/settings/memory': typeof SidebarLayoutSettingsMemoryRoute
   '/_sidebar-layout/settings/organization': typeof SidebarLayoutSettingsOrganizationRoute
   '/_sidebar-layout/settings/project': typeof SidebarLayoutSettingsProjectRouteWithChildren
+  '/_sidebar-layout/settings/recommendations': typeof SidebarLayoutSettingsRecommendationsRoute
   '/_sidebar-layout/settings/usage': typeof SidebarLayoutSettingsUsageRoute
+  '/_sidebar-layout/settings/white-label': typeof SidebarLayoutSettingsWhiteLabelRoute
   '/_sidebar-layout/shared-chat/$shareId': typeof SidebarLayoutSharedChatShareIdRoute
+  '/embed/chart/$chartEmbedId': typeof EmbedChartChartEmbedIdRoute
+  '/embed/story/$storyId': typeof EmbedStoryStoryIdRoute
   '/_sidebar-layout/_chat-layout/': typeof SidebarLayoutChatLayoutIndexRoute
+  '/_sidebar-layout/feed/': typeof SidebarLayoutFeedIndexRoute
   '/_sidebar-layout/settings/': typeof SidebarLayoutSettingsIndexRoute
   '/_sidebar-layout/stories/': typeof SidebarLayoutStoriesIndexRoute
   '/_sidebar-layout/settings/project/agent': typeof SidebarLayoutSettingsProjectAgentRoute
   '/_sidebar-layout/settings/project/budgets': typeof SidebarLayoutSettingsProjectBudgetsRoute
+  '/_sidebar-layout/settings/project/mcp-endpoint': typeof SidebarLayoutSettingsProjectMcpEndpointRoute
   '/_sidebar-layout/settings/project/mcp-servers': typeof SidebarLayoutSettingsProjectMcpServersRoute
   '/_sidebar-layout/settings/project/models': typeof SidebarLayoutSettingsProjectModelsRoute
   '/_sidebar-layout/settings/project/slack': typeof SidebarLayoutSettingsProjectSlackRoute
@@ -330,6 +434,7 @@ export interface FileRoutesById {
   '/_sidebar-layout/settings/project/telegram': typeof SidebarLayoutSettingsProjectTelegramRoute
   '/_sidebar-layout/settings/project/whatsapp': typeof SidebarLayoutSettingsProjectWhatsappRoute
   '/_sidebar-layout/stories/shared/$shareId': typeof SidebarLayoutStoriesSharedShareIdRoute
+  '/_sidebar-layout/stories/standalone/$storyId': typeof SidebarLayoutStoriesStandaloneStoryIdRoute
   '/_sidebar-layout/settings/project/': typeof SidebarLayoutSettingsProjectIndexRoute
   '/_sidebar-layout/stories/preview/$chatId/$storySlug': typeof SidebarLayoutStoriesPreviewChatIdStorySlugRoute
 }
@@ -337,26 +442,36 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/consent'
+    | '/embed'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
     | '/signup'
     | '/settings'
     | '/$chatId'
+    | '/automations/$automationId'
     | '/settings/account'
     | '/settings/chats-replay'
     | '/settings/context-explorer'
     | '/settings/enterprise'
     | '/settings/logs'
+    | '/settings/mcp-endpoint'
     | '/settings/memory'
     | '/settings/organization'
     | '/settings/project'
+    | '/settings/recommendations'
     | '/settings/usage'
+    | '/settings/white-label'
     | '/shared-chat/$shareId'
+    | '/embed/chart/$chartEmbedId'
+    | '/embed/story/$storyId'
+    | '/feed/'
     | '/settings/'
     | '/stories/'
     | '/settings/project/agent'
     | '/settings/project/budgets'
+    | '/settings/project/mcp-endpoint'
     | '/settings/project/mcp-servers'
     | '/settings/project/models'
     | '/settings/project/slack'
@@ -365,29 +480,40 @@ export interface FileRouteTypes {
     | '/settings/project/telegram'
     | '/settings/project/whatsapp'
     | '/stories/shared/$shareId'
+    | '/stories/standalone/$storyId'
     | '/settings/project/'
     | '/stories/preview/$chatId/$storySlug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/consent'
+    | '/embed'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
     | '/signup'
     | '/$chatId'
+    | '/automations/$automationId'
     | '/settings/account'
     | '/settings/chats-replay'
     | '/settings/context-explorer'
     | '/settings/enterprise'
     | '/settings/logs'
+    | '/settings/mcp-endpoint'
     | '/settings/memory'
     | '/settings/organization'
+    | '/settings/recommendations'
     | '/settings/usage'
+    | '/settings/white-label'
     | '/shared-chat/$shareId'
+    | '/embed/chart/$chartEmbedId'
+    | '/embed/story/$storyId'
+    | '/feed'
     | '/settings'
     | '/stories'
     | '/settings/project/agent'
     | '/settings/project/budgets'
+    | '/settings/project/mcp-endpoint'
     | '/settings/project/mcp-servers'
     | '/settings/project/models'
     | '/settings/project/slack'
@@ -396,11 +522,14 @@ export interface FileRouteTypes {
     | '/settings/project/telegram'
     | '/settings/project/whatsapp'
     | '/stories/shared/$shareId'
+    | '/stories/standalone/$storyId'
     | '/settings/project'
     | '/stories/preview/$chatId/$storySlug'
   id:
     | '__root__'
     | '/_sidebar-layout'
+    | '/consent'
+    | '/embed'
     | '/forgot-password'
     | '/login'
     | '/reset-password'
@@ -408,21 +537,29 @@ export interface FileRouteTypes {
     | '/_sidebar-layout/_chat-layout'
     | '/_sidebar-layout/settings'
     | '/_sidebar-layout/_chat-layout/$chatId'
+    | '/_sidebar-layout/automations/$automationId'
     | '/_sidebar-layout/settings/account'
     | '/_sidebar-layout/settings/chats-replay'
     | '/_sidebar-layout/settings/context-explorer'
     | '/_sidebar-layout/settings/enterprise'
     | '/_sidebar-layout/settings/logs'
+    | '/_sidebar-layout/settings/mcp-endpoint'
     | '/_sidebar-layout/settings/memory'
     | '/_sidebar-layout/settings/organization'
     | '/_sidebar-layout/settings/project'
+    | '/_sidebar-layout/settings/recommendations'
     | '/_sidebar-layout/settings/usage'
+    | '/_sidebar-layout/settings/white-label'
     | '/_sidebar-layout/shared-chat/$shareId'
+    | '/embed/chart/$chartEmbedId'
+    | '/embed/story/$storyId'
     | '/_sidebar-layout/_chat-layout/'
+    | '/_sidebar-layout/feed/'
     | '/_sidebar-layout/settings/'
     | '/_sidebar-layout/stories/'
     | '/_sidebar-layout/settings/project/agent'
     | '/_sidebar-layout/settings/project/budgets'
+    | '/_sidebar-layout/settings/project/mcp-endpoint'
     | '/_sidebar-layout/settings/project/mcp-servers'
     | '/_sidebar-layout/settings/project/models'
     | '/_sidebar-layout/settings/project/slack'
@@ -431,12 +568,15 @@ export interface FileRouteTypes {
     | '/_sidebar-layout/settings/project/telegram'
     | '/_sidebar-layout/settings/project/whatsapp'
     | '/_sidebar-layout/stories/shared/$shareId'
+    | '/_sidebar-layout/stories/standalone/$storyId'
     | '/_sidebar-layout/settings/project/'
     | '/_sidebar-layout/stories/preview/$chatId/$storySlug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   SidebarLayoutRoute: typeof SidebarLayoutRouteWithChildren
+  ConsentRoute: typeof ConsentRoute
+  EmbedRoute: typeof EmbedRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -471,6 +611,20 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/embed': {
+      id: '/embed'
+      path: '/embed'
+      fullPath: '/embed'
+      preLoaderRoute: typeof EmbedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/consent': {
+      id: '/consent'
+      path: '/consent'
+      fullPath: '/consent'
+      preLoaderRoute: typeof ConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_sidebar-layout': {
@@ -508,12 +662,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SidebarLayoutSettingsIndexRouteImport
       parentRoute: typeof SidebarLayoutSettingsRoute
     }
+    '/_sidebar-layout/feed/': {
+      id: '/_sidebar-layout/feed/'
+      path: '/feed'
+      fullPath: '/feed/'
+      preLoaderRoute: typeof SidebarLayoutFeedIndexRouteImport
+      parentRoute: typeof SidebarLayoutRoute
+    }
     '/_sidebar-layout/_chat-layout/': {
       id: '/_sidebar-layout/_chat-layout/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof SidebarLayoutChatLayoutIndexRouteImport
       parentRoute: typeof SidebarLayoutChatLayoutRoute
+    }
+    '/embed/story/$storyId': {
+      id: '/embed/story/$storyId'
+      path: '/story/$storyId'
+      fullPath: '/embed/story/$storyId'
+      preLoaderRoute: typeof EmbedStoryStoryIdRouteImport
+      parentRoute: typeof EmbedRoute
+    }
+    '/embed/chart/$chartEmbedId': {
+      id: '/embed/chart/$chartEmbedId'
+      path: '/chart/$chartEmbedId'
+      fullPath: '/embed/chart/$chartEmbedId'
+      preLoaderRoute: typeof EmbedChartChartEmbedIdRouteImport
+      parentRoute: typeof EmbedRoute
     }
     '/_sidebar-layout/shared-chat/$shareId': {
       id: '/_sidebar-layout/shared-chat/$shareId'
@@ -522,11 +697,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SidebarLayoutSharedChatShareIdRouteImport
       parentRoute: typeof SidebarLayoutRoute
     }
+    '/_sidebar-layout/settings/white-label': {
+      id: '/_sidebar-layout/settings/white-label'
+      path: '/white-label'
+      fullPath: '/settings/white-label'
+      preLoaderRoute: typeof SidebarLayoutSettingsWhiteLabelRouteImport
+      parentRoute: typeof SidebarLayoutSettingsRoute
+    }
     '/_sidebar-layout/settings/usage': {
       id: '/_sidebar-layout/settings/usage'
       path: '/usage'
       fullPath: '/settings/usage'
       preLoaderRoute: typeof SidebarLayoutSettingsUsageRouteImport
+      parentRoute: typeof SidebarLayoutSettingsRoute
+    }
+    '/_sidebar-layout/settings/recommendations': {
+      id: '/_sidebar-layout/settings/recommendations'
+      path: '/recommendations'
+      fullPath: '/settings/recommendations'
+      preLoaderRoute: typeof SidebarLayoutSettingsRecommendationsRouteImport
       parentRoute: typeof SidebarLayoutSettingsRoute
     }
     '/_sidebar-layout/settings/project': {
@@ -548,6 +737,13 @@ declare module '@tanstack/react-router' {
       path: '/memory'
       fullPath: '/settings/memory'
       preLoaderRoute: typeof SidebarLayoutSettingsMemoryRouteImport
+      parentRoute: typeof SidebarLayoutSettingsRoute
+    }
+    '/_sidebar-layout/settings/mcp-endpoint': {
+      id: '/_sidebar-layout/settings/mcp-endpoint'
+      path: '/mcp-endpoint'
+      fullPath: '/settings/mcp-endpoint'
+      preLoaderRoute: typeof SidebarLayoutSettingsMcpEndpointRouteImport
       parentRoute: typeof SidebarLayoutSettingsRoute
     }
     '/_sidebar-layout/settings/logs': {
@@ -585,6 +781,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SidebarLayoutSettingsAccountRouteImport
       parentRoute: typeof SidebarLayoutSettingsRoute
     }
+    '/_sidebar-layout/automations/$automationId': {
+      id: '/_sidebar-layout/automations/$automationId'
+      path: '/automations/$automationId'
+      fullPath: '/automations/$automationId'
+      preLoaderRoute: typeof SidebarLayoutAutomationsAutomationIdRouteImport
+      parentRoute: typeof SidebarLayoutRoute
+    }
     '/_sidebar-layout/_chat-layout/$chatId': {
       id: '/_sidebar-layout/_chat-layout/$chatId'
       path: '/$chatId'
@@ -598,6 +801,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/project/'
       preLoaderRoute: typeof SidebarLayoutSettingsProjectIndexRouteImport
       parentRoute: typeof SidebarLayoutSettingsProjectRoute
+    }
+    '/_sidebar-layout/stories/standalone/$storyId': {
+      id: '/_sidebar-layout/stories/standalone/$storyId'
+      path: '/stories/standalone/$storyId'
+      fullPath: '/stories/standalone/$storyId'
+      preLoaderRoute: typeof SidebarLayoutStoriesStandaloneStoryIdRouteImport
+      parentRoute: typeof SidebarLayoutRoute
     }
     '/_sidebar-layout/stories/shared/$shareId': {
       id: '/_sidebar-layout/stories/shared/$shareId'
@@ -655,6 +865,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SidebarLayoutSettingsProjectMcpServersRouteImport
       parentRoute: typeof SidebarLayoutSettingsProjectRoute
     }
+    '/_sidebar-layout/settings/project/mcp-endpoint': {
+      id: '/_sidebar-layout/settings/project/mcp-endpoint'
+      path: '/mcp-endpoint'
+      fullPath: '/settings/project/mcp-endpoint'
+      preLoaderRoute: typeof SidebarLayoutSettingsProjectMcpEndpointRouteImport
+      parentRoute: typeof SidebarLayoutSettingsProjectRoute
+    }
     '/_sidebar-layout/settings/project/budgets': {
       id: '/_sidebar-layout/settings/project/budgets'
       path: '/budgets'
@@ -698,6 +915,7 @@ const SidebarLayoutChatLayoutRouteWithChildren =
 interface SidebarLayoutSettingsProjectRouteChildren {
   SidebarLayoutSettingsProjectAgentRoute: typeof SidebarLayoutSettingsProjectAgentRoute
   SidebarLayoutSettingsProjectBudgetsRoute: typeof SidebarLayoutSettingsProjectBudgetsRoute
+  SidebarLayoutSettingsProjectMcpEndpointRoute: typeof SidebarLayoutSettingsProjectMcpEndpointRoute
   SidebarLayoutSettingsProjectMcpServersRoute: typeof SidebarLayoutSettingsProjectMcpServersRoute
   SidebarLayoutSettingsProjectModelsRoute: typeof SidebarLayoutSettingsProjectModelsRoute
   SidebarLayoutSettingsProjectSlackRoute: typeof SidebarLayoutSettingsProjectSlackRoute
@@ -714,6 +932,8 @@ const SidebarLayoutSettingsProjectRouteChildren: SidebarLayoutSettingsProjectRou
       SidebarLayoutSettingsProjectAgentRoute,
     SidebarLayoutSettingsProjectBudgetsRoute:
       SidebarLayoutSettingsProjectBudgetsRoute,
+    SidebarLayoutSettingsProjectMcpEndpointRoute:
+      SidebarLayoutSettingsProjectMcpEndpointRoute,
     SidebarLayoutSettingsProjectMcpServersRoute:
       SidebarLayoutSettingsProjectMcpServersRoute,
     SidebarLayoutSettingsProjectModelsRoute:
@@ -743,10 +963,13 @@ interface SidebarLayoutSettingsRouteChildren {
   SidebarLayoutSettingsContextExplorerRoute: typeof SidebarLayoutSettingsContextExplorerRoute
   SidebarLayoutSettingsEnterpriseRoute: typeof SidebarLayoutSettingsEnterpriseRoute
   SidebarLayoutSettingsLogsRoute: typeof SidebarLayoutSettingsLogsRoute
+  SidebarLayoutSettingsMcpEndpointRoute: typeof SidebarLayoutSettingsMcpEndpointRoute
   SidebarLayoutSettingsMemoryRoute: typeof SidebarLayoutSettingsMemoryRoute
   SidebarLayoutSettingsOrganizationRoute: typeof SidebarLayoutSettingsOrganizationRoute
   SidebarLayoutSettingsProjectRoute: typeof SidebarLayoutSettingsProjectRouteWithChildren
+  SidebarLayoutSettingsRecommendationsRoute: typeof SidebarLayoutSettingsRecommendationsRoute
   SidebarLayoutSettingsUsageRoute: typeof SidebarLayoutSettingsUsageRoute
+  SidebarLayoutSettingsWhiteLabelRoute: typeof SidebarLayoutSettingsWhiteLabelRoute
   SidebarLayoutSettingsIndexRoute: typeof SidebarLayoutSettingsIndexRoute
 }
 
@@ -757,12 +980,16 @@ const SidebarLayoutSettingsRouteChildren: SidebarLayoutSettingsRouteChildren = {
     SidebarLayoutSettingsContextExplorerRoute,
   SidebarLayoutSettingsEnterpriseRoute: SidebarLayoutSettingsEnterpriseRoute,
   SidebarLayoutSettingsLogsRoute: SidebarLayoutSettingsLogsRoute,
+  SidebarLayoutSettingsMcpEndpointRoute: SidebarLayoutSettingsMcpEndpointRoute,
   SidebarLayoutSettingsMemoryRoute: SidebarLayoutSettingsMemoryRoute,
   SidebarLayoutSettingsOrganizationRoute:
     SidebarLayoutSettingsOrganizationRoute,
   SidebarLayoutSettingsProjectRoute:
     SidebarLayoutSettingsProjectRouteWithChildren,
+  SidebarLayoutSettingsRecommendationsRoute:
+    SidebarLayoutSettingsRecommendationsRoute,
   SidebarLayoutSettingsUsageRoute: SidebarLayoutSettingsUsageRoute,
+  SidebarLayoutSettingsWhiteLabelRoute: SidebarLayoutSettingsWhiteLabelRoute,
   SidebarLayoutSettingsIndexRoute: SidebarLayoutSettingsIndexRoute,
 }
 
@@ -774,19 +1001,27 @@ const SidebarLayoutSettingsRouteWithChildren =
 interface SidebarLayoutRouteChildren {
   SidebarLayoutChatLayoutRoute: typeof SidebarLayoutChatLayoutRouteWithChildren
   SidebarLayoutSettingsRoute: typeof SidebarLayoutSettingsRouteWithChildren
+  SidebarLayoutAutomationsAutomationIdRoute: typeof SidebarLayoutAutomationsAutomationIdRoute
   SidebarLayoutSharedChatShareIdRoute: typeof SidebarLayoutSharedChatShareIdRoute
+  SidebarLayoutFeedIndexRoute: typeof SidebarLayoutFeedIndexRoute
   SidebarLayoutStoriesIndexRoute: typeof SidebarLayoutStoriesIndexRoute
   SidebarLayoutStoriesSharedShareIdRoute: typeof SidebarLayoutStoriesSharedShareIdRoute
+  SidebarLayoutStoriesStandaloneStoryIdRoute: typeof SidebarLayoutStoriesStandaloneStoryIdRoute
   SidebarLayoutStoriesPreviewChatIdStorySlugRoute: typeof SidebarLayoutStoriesPreviewChatIdStorySlugRoute
 }
 
 const SidebarLayoutRouteChildren: SidebarLayoutRouteChildren = {
   SidebarLayoutChatLayoutRoute: SidebarLayoutChatLayoutRouteWithChildren,
   SidebarLayoutSettingsRoute: SidebarLayoutSettingsRouteWithChildren,
+  SidebarLayoutAutomationsAutomationIdRoute:
+    SidebarLayoutAutomationsAutomationIdRoute,
   SidebarLayoutSharedChatShareIdRoute: SidebarLayoutSharedChatShareIdRoute,
+  SidebarLayoutFeedIndexRoute: SidebarLayoutFeedIndexRoute,
   SidebarLayoutStoriesIndexRoute: SidebarLayoutStoriesIndexRoute,
   SidebarLayoutStoriesSharedShareIdRoute:
     SidebarLayoutStoriesSharedShareIdRoute,
+  SidebarLayoutStoriesStandaloneStoryIdRoute:
+    SidebarLayoutStoriesStandaloneStoryIdRoute,
   SidebarLayoutStoriesPreviewChatIdStorySlugRoute:
     SidebarLayoutStoriesPreviewChatIdStorySlugRoute,
 }
@@ -795,8 +1030,22 @@ const SidebarLayoutRouteWithChildren = SidebarLayoutRoute._addFileChildren(
   SidebarLayoutRouteChildren,
 )
 
+interface EmbedRouteChildren {
+  EmbedChartChartEmbedIdRoute: typeof EmbedChartChartEmbedIdRoute
+  EmbedStoryStoryIdRoute: typeof EmbedStoryStoryIdRoute
+}
+
+const EmbedRouteChildren: EmbedRouteChildren = {
+  EmbedChartChartEmbedIdRoute: EmbedChartChartEmbedIdRoute,
+  EmbedStoryStoryIdRoute: EmbedStoryStoryIdRoute,
+}
+
+const EmbedRouteWithChildren = EmbedRoute._addFileChildren(EmbedRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   SidebarLayoutRoute: SidebarLayoutRouteWithChildren,
+  ConsentRoute: ConsentRoute,
+  EmbedRoute: EmbedRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,

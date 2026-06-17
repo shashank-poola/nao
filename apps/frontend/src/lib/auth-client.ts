@@ -1,8 +1,10 @@
+import { oauthProviderClient } from '@better-auth/oauth-provider/client';
+import { genericOAuthClient, inferAdditionalFields } from 'better-auth/client/plugins';
 import { createAuthClient } from 'better-auth/react';
-import { inferAdditionalFields } from 'better-auth/client/plugins';
 
 export const authClient = createAuthClient({
 	plugins: [
+		oauthProviderClient(),
 		inferAdditionalFields({
 			user: {
 				requiresPasswordReset: {
@@ -13,25 +15,34 @@ export const authClient = createAuthClient({
 				},
 			},
 		}),
+		genericOAuthClient(),
 	],
 });
 
 export const { useSession, signIn, signUp, signOut, requestPasswordReset, resetPassword } = authClient;
 
-const handleGoogleSignIn = async () => {
+const handleGoogleSignIn = async (callbackURL = '/') => {
 	await authClient.signIn.social({
 		provider: 'google',
-		callbackURL: '/',
+		callbackURL,
 		errorCallbackURL: '/login',
 	});
 };
 
-const handleGithubSignIn = async () => {
+const handleGithubSignIn = async (callbackURL = '/') => {
 	await authClient.signIn.social({
 		provider: 'github',
-		callbackURL: '/',
+		callbackURL,
 		errorCallbackURL: '/login',
 	});
 };
 
-export { handleGithubSignIn, handleGoogleSignIn };
+const handleOidcSignIn = async (providerId: string, callbackURL = '/') => {
+	await authClient.signIn.oauth2({
+		providerId,
+		callbackURL,
+		errorCallbackURL: '/login',
+	});
+};
+
+export { handleGithubSignIn, handleGoogleSignIn, handleOidcSignIn };

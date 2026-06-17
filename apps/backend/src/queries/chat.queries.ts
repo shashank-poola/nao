@@ -39,6 +39,11 @@ const sourcePlatformExpr = sql<SourcePlatform>`case
 	when ${s.chat.teamsThreadId} is not null then 'Teams'
 	when ${s.chat.whatsappThreadId} is not null then 'WhatsApp'
 	when ${s.chat.telegramThreadId} is not null then 'Telegram'
+	when exists(
+		select 1 from ${s.chatMessage}
+		where ${s.chatMessage.chatId} = ${s.chat.id}
+		and ${s.chatMessage.source} = 'mcp'
+	) then 'MCP'
 	else 'Web'
 end`;
 
@@ -78,7 +83,7 @@ async function listOwnChats(userId: string): Promise<EnrichedChat[]> {
 		.from(s.chat)
 		.innerJoin(s.project, eq(s.project.id, s.chat.projectId))
 		.innerJoin(s.user, eq(s.user.id, s.chat.userId))
-		.where(and(eq(s.chat.userId, userId), isNull(s.chat.deletedAt)))
+		.where(and(eq(s.chat.userId, userId), isNull(s.chat.deletedAt), isNotAutomationRunChat()))
 		.orderBy(desc(s.chat.updatedAt))
 		.execute();
 	return rows satisfies EnrichedChat[];
@@ -111,6 +116,7 @@ async function listSharedWithMeChats(userId: string): Promise<EnrichedChat[]> {
 		.where(
 			and(
 				isNull(s.chat.deletedAt),
+				isNotAutomationRunChat(),
 				ne(s.chat.userId, userId),
 				or(
 					and(
@@ -198,6 +204,7 @@ const aggregateChatMessagParts = (
 					source: row.chat_message.source ?? undefined,
 					isForked: row.chat_message.isForked ?? undefined,
 					citation: row.chat_message.citation ?? undefined,
+					stopReason: row.chat_message.stopReason ?? undefined,
 				};
 			}
 			return acc;
@@ -262,7 +269,7 @@ export const createChat = async (
 	newChat: NewChat,
 	newUserMessage: {
 		text: string;
-		source?: 'slack' | 'teams' | 'telegram' | 'whatsapp' | 'web';
+		source?: UIMessage['source'];
 		citation?: CitationData;
 	},
 	additionalParts: UIMessagePart[] = [],
@@ -342,26 +349,36 @@ export const upsertMessage = async (
 		llmProvider?: LlmProvider;
 		llmModelId?: string;
 	},
+	options: { updateMetadata?: boolean } = {},
 ): Promise<{ messageId: string }> => {
 	return db.transaction(async (t) => {
 		const messageId = message.id ?? crypto.randomUUID();
-		await t
-			.insert(s.chatMessage)
-			.values({
-				id: messageId,
-				chatId: message.chatId,
-				role: message.role,
-				stopReason: message.stopReason,
-				errorMessage: getErrorMessage(message.error),
-				llmProvider: message.llmProvider,
-				llmModelId: message.llmModelId,
-				source: message.source,
-				isForked: message.isForked,
-				citation: message.citation ?? null,
-				...message.tokenUsage,
-			})
-			.onConflictDoNothing({ target: s.chatMessage.id })
-			.execute();
+		const messageValues = {
+			id: messageId,
+			chatId: message.chatId,
+			role: message.role,
+			stopReason: message.stopReason,
+			errorMessage: getErrorMessage(message.error),
+			llmProvider: message.llmProvider,
+			llmModelId: message.llmModelId,
+			source: message.source,
+			isForked: message.isForked,
+			citation: message.citation ?? null,
+			...message.tokenUsage,
+		};
+		const insert = t.insert(s.chatMessage).values(messageValues);
+		if (options.updateMetadata === false) {
+			await insert.onConflictDoNothing({ target: s.chatMessage.id }).execute();
+		} else {
+			const { id, ...updateValues } = messageValues;
+			void id;
+			await insert
+				.onConflictDoUpdate({
+					target: s.chatMessage.id,
+					set: stripUndefined(updateValues),
+				})
+				.execute();
+		}
 
 		await t.delete(s.messagePart).where(eq(s.messagePart.messageId, messageId)).execute();
 		const dbParts = mapUIPartsToDBParts(message.parts, messageId);
@@ -374,6 +391,10 @@ export const upsertMessage = async (
 		return { messageId };
 	});
 };
+
+function stripUndefined<T extends Record<string, unknown>>(value: T): Partial<T> {
+	return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as Partial<T>;
+}
 
 export const deleteChat = async (chatId: string): Promise<{ projectId: string }> => {
 	const [result] = await db
@@ -448,6 +469,10 @@ export const getChatBySlackThread = async (threadId: string): Promise<{ id: stri
 	return result.at(0) || null;
 };
 
+export const attachSlackThread = async (chatId: string, slackThreadId: string): Promise<void> => {
+	await db.update(s.chat).set({ slackThreadId }).where(eq(s.chat.id, chatId)).execute();
+};
+
 export const getChatByTeamsThread = async (threadId: string): Promise<{ id: string; title: string } | null> => {
 	const result = await db
 		.select({ id: s.chat.id, title: s.chat.title })
@@ -509,7 +534,12 @@ export const searchUserChats = async (userId: string, query: string, limit = 10)
 		})
 		.from(s.chat)
 		.where(
-			and(eq(s.chat.userId, userId), isNull(s.chat.deletedAt), caseInsensitiveLike(s.chat.title, searchPattern)),
+			and(
+				eq(s.chat.userId, userId),
+				isNull(s.chat.deletedAt),
+				isNotAutomationRunChat(),
+				caseInsensitiveLike(s.chat.title, searchPattern),
+			),
 		)
 		.orderBy(desc(s.chat.updatedAt))
 		.limit(limit)
@@ -533,6 +563,7 @@ export const searchUserChats = async (userId: string, query: string, limit = 10)
 			and(
 				eq(s.chat.userId, userId),
 				isNull(s.chat.deletedAt),
+				isNotAutomationRunChat(),
 				caseInsensitiveLike(s.messagePart.text, searchPattern),
 			),
 		)
@@ -571,6 +602,10 @@ const caseInsensitiveLike = (column: Parameters<typeof like>[0], pattern: string
 	}
 	// SQLite LIKE is case-insensitive by default for ASCII
 	return like(column, pattern);
+};
+
+const isNotAutomationRunChat = () => {
+	return sql`not exists (select 1 from ${s.automationRun} where ${s.automationRun.chatId} = ${s.chat.id})`;
 };
 
 export const getSelectionForksByShareId = async (
@@ -651,10 +686,7 @@ export const getQueryResultByQueryId = async (
 	chatId: string,
 	queryId: string,
 ): Promise<{ columns: string[]; data: Record<string, unknown>[] } | null> => {
-	const jsonIdFilter =
-		dbConfig.dialect === Dialect.Postgres
-			? sql`${s.messagePart.toolOutput}->>'id' = ${queryId}`
-			: sql`json_extract(${s.messagePart.toolOutput}, '$.id') = ${queryId}`;
+	const jsonIdFilter = buildQueryIdJsonFilter(queryId);
 
 	const [result] = await db
 		.select({ toolOutput: s.messagePart.toolOutput })
@@ -671,7 +703,50 @@ export const getQueryResultByQueryId = async (
 		.limit(1)
 		.execute();
 
-	const output = result?.toolOutput as { columns?: unknown; data?: unknown } | null | undefined;
+	return extractQueryResultFromToolOutput(result?.toolOutput);
+};
+
+export const getQueryResultByQueryIdInProject = async (
+	projectId: string,
+	userId: string,
+	queryId: string,
+): Promise<{ columns: string[]; data: Record<string, unknown>[]; chatId: string } | null> => {
+	const jsonIdFilter = buildQueryIdJsonFilter(queryId);
+
+	const [result] = await db
+		.select({ toolOutput: s.messagePart.toolOutput, chatId: s.chat.id })
+		.from(s.messagePart)
+		.innerJoin(s.chatMessage, eq(s.messagePart.messageId, s.chatMessage.id))
+		.innerJoin(s.chat, eq(s.chatMessage.chatId, s.chat.id))
+		.where(
+			and(
+				eq(s.chat.projectId, projectId),
+				eq(s.chat.userId, userId),
+				isNull(s.chatMessage.supersededAt),
+				eq(s.messagePart.toolName, 'execute_sql'),
+				jsonIdFilter,
+			),
+		)
+		.limit(1)
+		.execute();
+
+	const extracted = extractQueryResultFromToolOutput(result?.toolOutput);
+	if (!extracted || !result?.chatId) {
+		return null;
+	}
+	return { ...extracted, chatId: result.chatId };
+};
+
+function buildQueryIdJsonFilter(queryId: string) {
+	return dbConfig.dialect === Dialect.Postgres
+		? sql`${s.messagePart.toolOutput}->>'id' = ${queryId}`
+		: sql`json_extract(${s.messagePart.toolOutput}, '$.id') = ${queryId}`;
+}
+
+function extractQueryResultFromToolOutput(
+	toolOutput: unknown,
+): { columns: string[]; data: Record<string, unknown>[] } | null {
+	const output = toolOutput as { columns?: unknown; data?: unknown } | null | undefined;
 	if (!output || !Array.isArray(output.columns) || !Array.isArray(output.data)) {
 		return null;
 	}
@@ -680,7 +755,7 @@ export const getQueryResultByQueryId = async (
 		columns: output.columns as string[],
 		data: output.data as Record<string, unknown>[],
 	};
-};
+}
 
 export async function getChatInfo(
 	chatId: string,

@@ -69,16 +69,18 @@ class BigQueryDatabaseContext(DatabaseContext):
 
     def partition_columns(self) -> list[str]:
         if self._partition_metadata is not None and self._partition_metadata.partition_column is not None:
-            return [self._partition_metadata.partition_column]
+            return self._filter_excluded_names([self._partition_metadata.partition_column])
         try:
-            return _get_bq_partition_columns(self._conn, self._project_id, self._schema, self._table_name)
+            return self._filter_excluded_names(
+                _get_bq_partition_columns(self._conn, self._project_id, self._schema, self._table_name)
+            )
         except Exception:
             logger.debug("Failed to fetch partition columns for %s.%s", self._schema, self._table_name)
             return []
 
     def clustering_columns(self) -> list[str]:
         if self._partition_metadata is not None:
-            return self._partition_metadata.clustering_columns
+            return self._filter_excluded_names(list(self._partition_metadata.clustering_columns))
         return []
 
     def description(self) -> str | None:
@@ -173,7 +175,9 @@ class BigQueryDatabaseContext(DatabaseContext):
         col_names = list(self.table.schema().keys())
         try:
             return [
-                {name: _coerce(row[i] if i < len(row) else None) for i, name in enumerate(col_names)}
+                self._filter_excluded_row(
+                    {name: _coerce(row[i] if i < len(row) else None) for i, name in enumerate(col_names)}
+                )
                 for row in self._conn.raw_sql(query)  # type: ignore[union-attr]
             ]
         except Exception:
@@ -556,7 +560,7 @@ class BigQueryConfig(DatabaseConfig):
             self._schema_metadata[schema] = _fetch_schema_partition_metadata(conn, self.project_id, schema)
         return self._schema_metadata[schema].get(table_name)
 
-    def get_query_history_sql(self, days: int) -> str | None:
+    def _default_query_history_sql(self, days: int) -> str | None:
         region = f"region-{self.location}" if self.location else "region-us"
         return (
             f"SELECT query "

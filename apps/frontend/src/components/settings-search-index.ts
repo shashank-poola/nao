@@ -38,6 +38,13 @@ export const settingsSearchIndex: SettingsSearchEntry[] = [
 	{
 		page: '/settings/account',
 		pageLabel: 'Account',
+		title: 'GitHub',
+		description: 'Connect your GitHub account for automations.',
+		keywords: ['github', 'automations', 'automation', 'issue', 'pull request'],
+	},
+	{
+		page: '/settings/account',
+		pageLabel: 'Account',
 		title: 'Danger Zone',
 		description: 'Delete your account or perform other destructive actions.',
 		keywords: ['delete account', 'remove'],
@@ -189,6 +196,44 @@ export const settingsSearchIndex: SettingsSearchEntry[] = [
 		adminOnly: true,
 	},
 
+	// ── MCP Endpoint ────────────────────────────────────────
+	{
+		page: '/settings/mcp-endpoint',
+		pageLabel: 'MCP Endpoint',
+		title: 'MCP Server Endpoint',
+		description: 'Allow external AI clients to connect to this workspace via MCP.',
+		keywords: ['model context protocol', 'claude desktop', 'cursor', 'external', 'api', 'bearer'],
+	},
+	{
+		page: '/settings/mcp-endpoint',
+		pageLabel: 'MCP Endpoint',
+		section: 'MCP Modes',
+		title: 'Sub-agent mode',
+		description:
+			"Exposes ask_nao — delegates the full analytics task to nao's agent. The reasoning trace is saved as a chat in the nao UI.",
+		keywords: ['ask_nao', 'agent', 'analytics', 'delegate', 'sub-agent'],
+	},
+	{
+		page: '/settings/mcp-endpoint',
+		pageLabel: 'MCP Endpoint',
+		section: 'MCP Modes',
+		title: 'Context-layer mode',
+		description:
+			'Exposes ls_nao_context, grep_nao_context, read_nao_context, execute_sql, create_story, update_story — the client MCP drives the workflow step by step.',
+		keywords: [
+			'ls_nao_context',
+			'grep_nao_context',
+			'read_nao_context',
+			'execute_sql',
+			'create_story',
+			'update_story',
+			'sql',
+			'query',
+			'story',
+			'context',
+		],
+	},
+
 	// ── Project > Slack ──────────────────────────────────────
 	{
 		page: '/settings/project/slack',
@@ -204,6 +249,15 @@ export const settingsSearchIndex: SettingsSearchEntry[] = [
 		title: 'Auto-create users from Slack',
 		description: 'Automatically provision nao accounts for Slack senders whose email domain is in the allowlist.',
 		keywords: ['sign up', 'provision', 'onboarding', 'domain', 'allowlist', 'whitelist', 'auto create'],
+		adminOnly: true,
+	},
+	{
+		page: '/settings/project/slack',
+		pageLabel: 'Slack',
+		title: 'Reply only when mentioned',
+		description:
+			'Control whether nao answers every message in active Slack threads or only messages that tag the bot.',
+		keywords: ['reply mode', 'mentions', 'tagged', 'thread replies', 'bot behavior'],
 		adminOnly: true,
 	},
 	{
@@ -322,6 +376,35 @@ export const settingsSearchIndex: SettingsSearchEntry[] = [
 		adminOnly: true,
 	},
 
+	// ── Context Recommendations ──────────────────────────────
+	{
+		page: '/settings/recommendations',
+		pageLabel: 'Recommendations',
+		title: 'Context Recommendations',
+		description: 'Review and act on context recommendations for your project.',
+		keywords: [
+			'context',
+			'recommendations',
+			'acknowledge',
+			'snooze',
+			'dismiss',
+			'insights',
+			'frequency',
+			'schedule',
+			'daily',
+			'weekly',
+			'monthly',
+			'repository',
+			'github',
+			'pull request',
+			'yolo',
+			'auto',
+			'automatic',
+			'pr',
+		],
+		adminOnly: true,
+	},
+
 	// ── Logs ─────────────────────────────────────────────────
 	{
 		page: '/settings/logs',
@@ -354,6 +437,57 @@ export const settingsSearchIndex: SettingsSearchEntry[] = [
 		adminOnly: true,
 		cloudHidden: true,
 		licenseRequired: true,
+	},
+	{
+		page: '/settings/white-label',
+		pageLabel: 'White-label',
+		title: 'White-label branding',
+		description: 'Replace the nao name, logo and favicon with your own branding. Enterprise feature.',
+		keywords: [
+			'white label',
+			'whitelabel',
+			'branding',
+			'logo',
+			'favicon',
+			'tab',
+			'title',
+			'customize',
+			'signup',
+			'login',
+			'enterprise',
+		],
+		adminOnly: true,
+		cloudHidden: true,
+	},
+	{
+		page: '/settings/white-label',
+		pageLabel: 'White-label',
+		section: 'Logos & favicon',
+		title: 'Logo',
+		description: 'Replace the logo shown in the sidebar and on the login and sign-up pages.',
+		keywords: ['logo', 'sidebar', 'login logo', 'signup logo', 'auth', 'brand', 'enterprise'],
+		adminOnly: true,
+		cloudHidden: true,
+	},
+	{
+		page: '/settings/white-label',
+		pageLabel: 'White-label',
+		section: 'Logos & favicon',
+		title: 'Favicon',
+		description: 'Replace the favicon shown in the browser tab.',
+		keywords: ['favicon', 'icon', 'tab', 'enterprise'],
+		adminOnly: true,
+		cloudHidden: true,
+	},
+	{
+		page: '/settings/white-label',
+		pageLabel: 'White-label',
+		section: 'Names',
+		title: 'Browser tab title',
+		description: 'Rename the browser tab shown to your users.',
+		keywords: ['tab title', 'page title', 'name', 'enterprise'],
+		adminOnly: true,
+		cloudHidden: true,
 	},
 
 	// ── Memory (user-level) ──────────────────────────────────

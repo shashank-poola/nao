@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod/v4';
 
+import { env } from '../env';
 import * as memoryQueries from '../queries/memory';
 import * as projectQueries from '../queries/project.queries';
 import * as userQueries from '../queries/user.queries';
@@ -9,8 +10,8 @@ import { buildUserAddedEmail } from '../utils/email-builders';
 import { adminProtectedProcedure, projectProtectedProcedure, protectedProcedure, publicProcedure } from './trpc';
 
 export const userRoutes = {
-	countAll: publicProcedure.query(() => {
-		return userQueries.countUsers();
+	hasUsers: publicProcedure.query(async () => {
+		return (await userQueries.countUsers()) > 0;
 	}),
 
 	get: projectProtectedProcedure.input(z.object({ userId: z.string() })).query(async ({ input, ctx }) => {
@@ -70,7 +71,7 @@ export const userRoutes = {
 				name: input.name,
 				checkExisting: async (userId) => !!(await projectQueries.getProjectMember(projectId, userId)),
 				addMember: async (userId) => {
-					await projectQueries.addProjectMember({ userId, projectId, role: 'user' });
+					await projectQueries.addProjectMember({ userId, projectId, role: env.DEFAULT_USER_ROLE });
 				},
 				buildEmail: (user, password) => buildUserAddedEmail(user, ctx.project.name, 'project', password),
 			});

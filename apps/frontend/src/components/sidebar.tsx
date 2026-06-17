@@ -1,12 +1,21 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useMatchRoute, useNavigate, useRouterState } from '@tanstack/react-router';
-import { ArrowLeft, ArrowLeftFromLine, ArrowRightToLine, ChevronRight, PlusIcon, SearchIcon, X } from 'lucide-react';
+import {
+	ArrowLeftFromLine,
+	ArrowRightToLine,
+	ChevronRight,
+	NewspaperIcon,
+	PlusIcon,
+	SearchIcon,
+	X,
+} from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { ChatFilterMenu } from './sidebar-chat-filter-menu';
 import { ChatListItem } from './sidebar-chat-list-item';
 import { SidebarCommunity } from './sidebar-community';
 import { SidebarSettingsNav } from './sidebar-settings-nav';
 import { SidebarUserMenu } from './sidebar-user-menu';
+import { SidebarVersionNotice } from './sidebar-version-notice';
 import { Spinner } from './ui/spinner';
 import StoryIcon from './ui/story-icon';
 import type { ChatFilterType, ChatGroup, ChatGroupBy, GroupedChatItem } from '@nao/shared/types';
@@ -16,7 +25,9 @@ import NaoLogo from '@/components/icons/nao-logo.svg';
 import { Button } from '@/components/ui/button';
 import { useCommandMenuCallback } from '@/contexts/command-menu-callback';
 import { useSidebar } from '@/contexts/sidebar';
+import { brandingAssetUrl, useBranding } from '@/hooks/use-branding';
 import { useChatViewPreferences } from '@/hooks/use-chat-view-preferences';
+import { useSidebarSectionOpen } from '@/hooks/use-sidebar-section-open';
 import { useTimeAgo } from '@/hooks/use-time-ago';
 import { getActiveProjectId, setActiveProjectId } from '@/lib/active-project';
 import { cn, hideIf } from '@/lib/utils';
@@ -33,8 +44,10 @@ export function Sidebar() {
 	const projects = useQuery(trpc.project.listForCurrentUser.queryOptions());
 	const config = useQuery(trpc.system.getPublicConfig.queryOptions());
 	const license = useQuery(trpc.license.getStatus.queryOptions());
+	const branding = useBranding();
 	const { isAdmin, isViewer } = usePermissions();
 	const isCloud = config.data?.naoMode === 'cloud';
+	const betaAutomationsEnabled = config.data?.betaAutomationsEnabled === true;
 	const { groupBy, filters, setGroupBy, toggleFilter } = useChatViewPreferences();
 	const hasLicense = license.data?.tokenProvided === true;
 
@@ -56,7 +69,22 @@ export function Sidebar() {
 	}, [navigate, isMobile, closeMobile]);
 
 	const handleNavigateStories = useCallback(() => {
-		navigate({ to: '/stories' });
+		void queryClient.invalidateQueries({ queryKey: trpc.storyFolder.listTree.queryKey() });
+		void queryClient.invalidateQueries({ queryKey: trpc.storyFolder.listItems.queryKey() });
+		void queryClient.invalidateQueries({ queryKey: trpc.story.listAll.queryKey() });
+		void queryClient.invalidateQueries({ queryKey: trpc.story.listStandalone.queryKey() });
+		void queryClient.invalidateQueries({ queryKey: trpc.story.listArchived.queryKey() });
+		void queryClient.invalidateQueries({ queryKey: trpc.story.listStandaloneArchived.queryKey() });
+		void queryClient.invalidateQueries({ queryKey: trpc.storyShare.list.queryKey() });
+		void queryClient.invalidateQueries({ queryKey: trpc.favorite.list.queryKey() });
+		navigate({ to: '/stories', search: { folderId: null } });
+		if (isMobile) {
+			closeMobile();
+		}
+	}, [navigate, isMobile, closeMobile, queryClient]);
+
+	const handleNavigateFeed = useCallback(() => {
+		navigate({ to: '/feed' });
 		if (isMobile) {
 			closeMobile();
 		}
@@ -112,110 +140,120 @@ export function Sidebar() {
 	const sidebarContent = (
 		<div
 			className={cn(
-				'flex flex-col h-full overflow-hidden',
+				'flex flex-col h-full overflow-hidden bg-sidebar dark:bg-background',
 				isMobile
-					? 'w-72 bg-sidebar'
+					? 'w-72'
 					: cn(
 							'border-r border-sidebar-border transition-[width,background-color] duration-300',
-							effectiveIsCollapsed ? 'w-13 bg-panel' : 'w-72 bg-sidebar',
+							effectiveIsCollapsed ? 'w-13' : 'w-72',
 						),
 			)}
 		>
-			<div className='p-2 flex flex-col gap-1'>
-				{isInSettings ? (
-					<div className='flex items-center relative'>
-						<Link
-							to='/'
-							onClick={() => isMobile && closeMobile()}
-							className={cn(
-								'flex items-center gap-2 text-sm rounded-md transition-all duration-300',
-								'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground whitespace-nowrap',
-								effectiveIsCollapsed
-									? 'w-0 opacity-0 overflow-hidden p-0'
-									: 'flex-1 min-w-0 opacity-100 px-3 py-2',
-							)}
-						>
-							<ArrowLeft className='size-4 shrink-0' />
-							<span className='truncate'>Back to app</span>
-						</Link>
-						{!isMobile && (
-							<Button
-								variant='ghost'
-								size='icon-md'
-								onClick={() => toggleSidebar()}
-								className='text-muted-foreground shrink-0'
-							>
-								{effectiveIsCollapsed ? (
-									<ArrowRightToLine className='size-4' />
-								) : (
-									<ArrowLeftFromLine className='size-4' />
-								)}
-							</Button>
+			<div className='p-2 flex flex-col'>
+				<div className='flex items-center relative'>
+					<button
+						type='button'
+						onClick={handleNavigateHome}
+						aria-label={isViewer ? 'View shared items' : 'New chat'}
+						className={cn(
+							'flex items-center justify-center mr-auto absolute left-0 z-0 rounded-md cursor-pointer hover:bg-sidebar-accent transition-[opacity,visibility,background-color] duration-300',
+							branding.enabled && branding.hasLogo ? 'p-1' : 'p-2',
+							hideIf(effectiveIsCollapsed),
 						)}
-					</div>
-				) : (
-					<>
-						<div className='flex items-center relative'>
-							<button
-								type='button'
-								onClick={handleNavigateHome}
-								aria-label={isViewer ? 'View shared items' : 'New chat'}
-								className={cn(
-									'flex items-center justify-center p-2 mr-auto absolute left-0 z-0 rounded-md cursor-pointer hover:bg-sidebar-accent transition-[opacity,visibility,background-color] duration-300',
-									hideIf(effectiveIsCollapsed),
-								)}
-							>
-								<NaoLogo className='size-5' />
-							</button>
+					>
+						{branding.enabled && branding.hasLogo ? (
+							<img
+								src={brandingAssetUrl('logo', branding.updatedAt)}
+								alt={branding.appName ?? 'Logo'}
+								className='h-7 w-auto max-w-[9rem] object-contain'
+							/>
+						) : (
+							<NaoLogo className='size-5' />
+						)}
+					</button>
 
-							{isMobile ? (
-								<Button
-									variant='ghost'
-									size='icon-md'
-									onClick={closeMobile}
-									className='text-muted-foreground ml-auto z-10'
-								>
-									<X className='size-4' />
-								</Button>
+					{isMobile ? (
+						<Button
+							variant='ghost'
+							size='icon-md'
+							onClick={closeMobile}
+							className='text-muted-foreground ml-auto z-10'
+						>
+							<X className='size-4' />
+						</Button>
+					) : (
+						<Button
+							variant='ghost'
+							size='icon-md'
+							onClick={() => toggleSidebar()}
+							className='text-muted-foreground ml-auto z-10'
+						>
+							{effectiveIsCollapsed ? (
+								<ArrowRightToLine className='size-4' />
 							) : (
-								<Button
-									variant='ghost'
-									size='icon-md'
-									onClick={() => toggleSidebar()}
-									className='text-muted-foreground ml-auto z-10'
-								>
-									{effectiveIsCollapsed ? (
-										<ArrowRightToLine className='size-4' />
-									) : (
-										<ArrowLeftFromLine className='size-4' />
-									)}
-								</Button>
+								<ArrowLeftFromLine className='size-4' />
+							)}
+						</Button>
+					)}
+				</div>
+				{!isInSettings && (
+					<>
+						<div className='py-4'>
+							{!isViewer && (
+								<SidebarMenuButton
+									icon={PlusIcon}
+									label='New chat'
+									shortcut='⇧⌘O'
+									isCollapsed={effectiveIsCollapsed}
+									onClick={handleNavigateHome}
+								/>
+							)}
+							<SidebarMenuButton
+								icon={SearchIcon}
+								label='Search chats'
+								shortcut='⌘K'
+								isCollapsed={effectiveIsCollapsed}
+								onClick={handleSearchChats}
+							/>
+							<SidebarMenuButton
+								icon={StoryIcon as unknown as LucideIcon}
+								label='Stories'
+								shortcut=''
+								isCollapsed={effectiveIsCollapsed}
+								onClick={handleNavigateStories}
+							/>
+							{!isViewer && betaAutomationsEnabled && (
+								<SidebarMenuButton
+									icon={NewspaperIcon as unknown as LucideIcon}
+									label='Feed'
+									shortcut=''
+									isCollapsed={effectiveIsCollapsed}
+									onClick={handleNavigateFeed}
+								/>
 							)}
 						</div>
 
-						{!isViewer && (
-							<SidebarMenuButton
-								icon={PlusIcon}
-								label='New chat'
-								shortcut='⇧⌘O'
-								isCollapsed={effectiveIsCollapsed}
-								onClick={handleNavigateHome}
+						<div
+							className={cn(
+								'flex items-center justify-between relative group transition-[padding,height,background-color] duration-300 pt-[10px] pl-2',
+								effectiveIsCollapsed ? 'h-9' : '',
+							)}
+						>
+							<div
+								className={cn(
+									'transition-[opacity,visibility] duration-300',
+									hideIf(effectiveIsCollapsed),
+								)}
+							>
+								<span className='text-md font-medium'>Chats</span>
+							</div>
+							<ChatFilterMenu
+								groupBy={groupBy}
+								filters={filters}
+								onGroupByChange={setGroupBy}
+								onFilterToggle={toggleFilter}
 							/>
-						)}
-						<SidebarMenuButton
-							icon={SearchIcon}
-							label='Search chats'
-							shortcut='⌘K'
-							isCollapsed={effectiveIsCollapsed}
-							onClick={handleSearchChats}
-						/>
-						<SidebarMenuButton
-							icon={StoryIcon as unknown as LucideIcon}
-							label='Stories'
-							shortcut=''
-							isCollapsed={effectiveIsCollapsed}
-							onClick={handleNavigateStories}
-						/>
+						</div>
 					</>
 				)}
 			</div>
@@ -237,24 +275,16 @@ export function Sidebar() {
 					groupBy={groupBy}
 					filters={filters}
 					isViewer={isViewer}
+					showFeed={betaAutomationsEnabled}
 				/>
 			)}
 
+			{!isInSettings && <div className='border-b border-sidebar-border mx-2'></div>}
+
 			<div className={cn('mt-auto transition-[padding] duration-300', effectiveIsCollapsed ? 'p-1' : 'p-2')}>
 				{isInSettings && <SidebarCommunity isCollapsed={effectiveIsCollapsed} />}
-				<SidebarUserMenu
-					isCollapsed={effectiveIsCollapsed}
-					chatFilterMenu={
-						!isInSettings ? (
-							<ChatFilterMenu
-								groupBy={groupBy}
-								filters={filters}
-								onGroupByChange={setGroupBy}
-								onFilterToggle={toggleFilter}
-							/>
-						) : undefined
-					}
-				/>
+				{isAdmin && <SidebarVersionNotice isCollapsed={effectiveIsCollapsed} />}
+				<SidebarUserMenu isCollapsed={effectiveIsCollapsed} isInSettings={!!isInSettings} />
 			</div>
 		</div>
 	);
@@ -295,7 +325,7 @@ function SidebarMenuButton({
 		<Button
 			variant='ghost'
 			className={cn(
-				'w-full justify-start relative group shadow-none transition-[padding,height,background-color] duration-300 p-[9px_!important]',
+				'w-full justify-start relative group shadow-none transition-[padding,height,background-color] duration-300 p-[10px_!important] gap-4',
 				isCollapsed ? 'h-9' : '',
 			)}
 			onClick={onClick}
@@ -316,15 +346,21 @@ function SidebarNav({
 	groupBy,
 	filters,
 	isViewer,
+	showFeed,
 }: {
 	isCollapsed: boolean;
 	groupBy: ChatGroupBy;
 	filters: ChatFilterType[];
 	isViewer: boolean;
+	showFeed: boolean;
 }) {
 	const groupedChats = useQuery({
 		...trpc.chat.listGrouped.queryOptions({ groupBy, filters }),
 		placeholderData: keepPreviousData,
+	});
+	const automations = useQuery({
+		...trpc.automation.list.queryOptions(),
+		enabled: !isViewer && showFeed,
 	});
 	const groups = groupedChats.data?.groups;
 	const isEmpty = groups?.every((group) => group.chats.length === 0);
@@ -335,6 +371,8 @@ function SidebarNav({
 				hideIf(isCollapsed),
 			)}
 		>
+			{!isViewer && showFeed && <AutomationsSection items={automations.data ?? []} />}
+
 			{groups?.map((group) => (
 				<GroupSection key={group.label} group={group} groupBy={groupBy} />
 			))}
@@ -356,10 +394,75 @@ function SidebarNav({
 	);
 }
 
+function AutomationsSection({
+	items,
+}: {
+	items: Array<{
+		id: string;
+		title: string;
+		enabled: boolean;
+		updatedAt: Date;
+	}>;
+}) {
+	const { isOpen, toggle } = useSidebarSectionOpen('section:automations');
+
+	if (items.length === 0) {
+		return null;
+	}
+
+	return (
+		<>
+			<div className='px-2 space-y-0.5'>
+				<SidebarSectionHeader label='Automations' isOpen={isOpen} onToggle={toggle} />
+			</div>
+			{isOpen && (
+				<div className='px-2 space-y-1'>
+					{items.map((item) => (
+						<AutomationListItem key={item.id} item={item} />
+					))}
+				</div>
+			)}
+		</>
+	);
+}
+
+function AutomationListItem({
+	item,
+}: {
+	item: {
+		id: string;
+		title: string;
+		enabled: boolean;
+		updatedAt: Date;
+	};
+}) {
+	const timeAgo = useTimeAgo(new Date(item.updatedAt).getTime());
+
+	return (
+		<Link
+			params={{ automationId: item.id }}
+			to='/automations/$automationId'
+			className='group relative w-full rounded-md px-3 py-2 transition-[background-color,padding,opacity] min-w-0 flex-1 flex gap-2 items-center'
+			inactiveProps={{ className: 'text-sidebar-foreground hover:bg-sidebar-accent opacity-75' }}
+			activeProps={{ className: 'text-foreground bg-sidebar-accent font-medium' }}
+		>
+			<div className='truncate text-sm mr-auto'>{item.title}</div>
+			<div
+				className={cn(
+					'text-xs whitespace-nowrap',
+					item.enabled ? 'text-muted-foreground' : 'text-muted-foreground/60',
+				)}
+			>
+				{item.enabled ? timeAgo.humanReadable : 'paused'}
+			</div>
+		</Link>
+	);
+}
+
 const GROUP_INITIAL_COUNT = 10;
 
 function GroupSection({ group, groupBy }: { group: ChatGroup; groupBy: ChatGroupBy }) {
-	const [isOpen, setIsOpen] = useState(true);
+	const { isOpen, toggle } = useSidebarSectionOpen(`section:chat-group:${group.label}`);
 	const [expanded, setExpanded] = useState(false);
 	const hasMore = group.chats.length > GROUP_INITIAL_COUNT;
 	const visibleChats = expanded ? group.chats : group.chats.slice(0, GROUP_INITIAL_COUNT);
@@ -368,13 +471,17 @@ function GroupSection({ group, groupBy }: { group: ChatGroup; groupBy: ChatGroup
 		return null;
 	}
 
+	const showChats = group.label ? isOpen : true;
+
 	return (
 		<>
-			<div className='px-2 space-y-0.5'>
-				<SidebarSectionHeader label={group.label} isOpen={isOpen} onToggle={() => setIsOpen((p) => !p)} />
-			</div>
+			{group.label && (
+				<div className='px-2'>
+					<SidebarSectionHeader label={group.label} isOpen={isOpen} onToggle={toggle} />
+				</div>
+			)}
 
-			{isOpen && (
+			{showChats && (
 				<div className='px-2 space-y-1'>
 					{visibleChats.map((item) =>
 						item.kind === 'shared' ? (
@@ -388,7 +495,7 @@ function GroupSection({ group, groupBy }: { group: ChatGroup; groupBy: ChatGroup
 						<button
 							type='button'
 							onClick={() => setExpanded((p) => !p)}
-							className='px-3 py-1 text-xs text-muted-foreground cursor-pointer transition-colors hover:text-foreground'
+							className='px-2 py-1 text-xs text-muted-foreground cursor-pointer transition-colors hover:text-foreground'
 						>
 							{expanded ? 'Show less' : 'Show more'}
 						</button>
@@ -406,7 +513,7 @@ function SharedChatGroupItem({ item, groupBy }: { item: GroupedChatItem; groupBy
 		<Link
 			params={{ shareId: item.shareId! }}
 			to='/shared-chat/$shareId'
-			className='group relative w-full rounded-md px-3 py-2 transition-[background-color,padding,opacity] min-w-0 flex-1 flex gap-2 items-center'
+			className='group relative w-full rounded-md px-2 py-2 transition-[background-color,padding,opacity] min-w-0 flex-1 flex gap-2 items-center'
 			inactiveProps={{ className: 'text-sidebar-foreground hover:bg-sidebar-accent opacity-75' }}
 			activeProps={{ className: 'text-foreground bg-sidebar-accent font-medium' }}
 		>
@@ -436,7 +543,7 @@ function SidebarSectionHeader({
 	return (
 		<button
 			onClick={onToggle}
-			className='group relative flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors w-full text-left text-muted-foreground whitespace-nowrap cursor-pointer'
+			className='group relative flex items-center gap-2 px-2 py-1.5 text-sm rounded-md transition-colors w-full text-left text-muted-foreground whitespace-nowrap cursor-pointer'
 		>
 			<span>{label}</span>
 			<ChevronRight

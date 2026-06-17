@@ -1,10 +1,11 @@
-import { Block, Bold, Br, Italic, Link, List, ListItem, Location, Span, Title } from '../../lib/markdown';
+import { Block, Bold, Br, Link, List, ListItem, Location, Span, Title } from '../../lib/markdown';
 import type { Skill } from '../../services/skill';
 import { tokenCounter } from '../../services/token-counter';
 import type { UserMemory } from '../../types/memory';
 import { MEMORY_CATEGORIES, MemoryCategory } from '../../types/memory';
 import { formatCurrentDate } from '../../utils/date';
 import { groupBy } from '../../utils/utils';
+import { NaoContextStructure } from './nao-context-structure';
 
 type Connection = {
 	type: string;
@@ -17,11 +18,19 @@ type SystemPromptProps = {
 	connections?: Connection[];
 	skills?: Skill[];
 	timezone?: string;
+	testMode?: boolean;
 };
 
 export const MEMORY_TOKEN_LIMIT = 1000;
 
-export function SystemPrompt({ memories = [], userRules, connections = [], skills = [], timezone }: SystemPromptProps) {
+export function SystemPrompt({
+	memories = [],
+	userRules,
+	connections = [],
+	skills = [],
+	timezone,
+	testMode,
+}: SystemPromptProps) {
 	const visibleMemories = getMemoriesInTokenRange(memories, MEMORY_TOKEN_LIMIT);
 	const hasClickHouse = connections.some((connection) => connection.type.toLowerCase() === 'clickhouse');
 	const hasTSQL = connections.some((connection) => ['mssql', 'fabric'].includes(connection.type.toLowerCase()));
@@ -48,25 +57,7 @@ export function SystemPrompt({ memories = [], userRules, connections = [], skill
 				<Br />
 				Skills can be mentioned using the / trigger.
 			</Span>
-			<Title level={2}>How nao Works</Title>
-			<List>
-				<ListItem>All the context available to you is stored as files in the project folder.</ListItem>
-				<ListItem>
-					In the <Italic>databases</Italic> folder you can find the databases context, each layer is a folder
-					from the databases, schema and then tables.
-				</ListItem>
-				<ListItem>
-					Folders are named like this: database=my_database, schema=my_schema, table=my_table.
-				</ListItem>
-				<ListItem>
-					Databases folders are named following this pattern: type={`<database_type>`}/database=
-					{`<database_name>`}/schema={`<schema_name>`}/table={`<table_name>`}.
-				</ListItem>
-				<ListItem>
-					Each table has files describing the table schema and the data in the table (like columns.md,
-					preview.md, etc.)
-				</ListItem>
-			</List>
+			<NaoContextStructure />
 			<Title level={2}>Persona</Title>
 			<List>
 				<ListItem>
@@ -89,6 +80,15 @@ export function SystemPrompt({ memories = [], userRules, connections = [], skill
 					researching.
 				</ListItem>
 				<ListItem>If you can execute a SQL query, use the execute_sql tool for it.</ListItem>
+				{!testMode && (
+					<ListItem>
+						Use the <Bold>clarification</Bold> tool when the user's request is genuinely ambiguous and
+						proceeding would likely produce the wrong result (e.g. multiple plausible tables, unclear time
+						range, undefined metric). If you need to ask another clarifying question after the user answers,
+						call the <Bold>clarification</Bold> tool again instead of asking in plain text, bullet lists, or
+						examples.
+					</ListItem>
+				)}
 				<ListItem>
 					For display_chart x_axis_type: use "date" only when x-axis values are parseable by JavaScript Date
 					(e.g. YYYY-MM-DD). Use "category" for quarter labels (quarter_ending), fiscal periods (FY25-Q1), or
@@ -116,6 +116,11 @@ export function SystemPrompt({ memories = [], userRules, connections = [], skill
 				</ListItem>
 				<ListItem>
 					Never assume columns names, if available, use the columns.md file to get the column names.
+				</ListItem>
+				<ListItem>
+					A LIMIT/TOP clause caps how many rows are returned, not how many exist. Never state a total or an
+					"exact" count based on the number of rows a limited query returned. To count rows, run a separate
+					query using COUNT(*) (or COUNT over a subquery) without a LIMIT/TOP clause.
 				</ListItem>
 				{hasTSQL && (
 					<>
@@ -171,6 +176,14 @@ export function SystemPrompt({ memories = [], userRules, connections = [], skill
 					The column_name must match the column in the SELECT output that produced the number.
 				</ListItem>
 				<ListItem>The Query ID is shown in the execute_sql tool output (e.g., Query ID: query_a1b2).</ListItem>
+			</List>
+			<Title level={2}>Formatting Rules</Title>
+			<List>
+				<ListItem>
+					For math equations, use KaTeX with dollar delimiters: <Bold>{'$...$'}</Bold> for inline math and{' '}
+					<Bold>{'$$...$$'}</Bold> for block math. Do not use {'\\(...\\)'} or {'\\[...\\]'} delimiters as
+					they are not rendered.
+				</ListItem>
 			</List>
 			<Block separator={'\n\n---\n\n'}>
 				{userRules && (

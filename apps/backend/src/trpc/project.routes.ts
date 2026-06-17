@@ -19,7 +19,7 @@ import { posthog, PostHogEvent } from '../services/posthog';
 import { slackService } from '../services/slack';
 import { listAvailableTranscribeModels as getAvailableTranscribeModels } from '../services/transcribe.service';
 import { AgentSettings } from '../types/agent-settings';
-import { llmConfigSchema, llmProviderSchema } from '../types/llm';
+import { customModelMetadataSchema, llmConfigSchema, llmProviderSchema } from '../types/llm';
 import { isValidIsoDateString } from '../utils/date';
 import { getEnvApiKey, getEnvBaseUrls, getEnvProviders, getProjectAvailableModels } from '../utils/llm';
 import { extractRequiredEnvVars } from '../utils/nao-config';
@@ -94,6 +94,7 @@ export const projectRoutes = {
 				apiKeyPreview: c.apiKey ? c.apiKey.slice(0, 8) + '...' + c.apiKey.slice(-4) : null,
 				credentialPreviews: buildCredentialPreviews(c.credentials),
 				enabledModels: c.enabledModels ?? [],
+				customModels: c.customModels ?? [],
 				baseUrl: c.baseUrl ?? null,
 				createdAt: c.createdAt,
 				updatedAt: c.updatedAt,
@@ -130,6 +131,7 @@ export const projectRoutes = {
 				apiKey: z.string().min(1).optional(),
 				credentials: z.record(z.string(), z.string()).optional(),
 				enabledModels: z.array(z.string()).optional(),
+				customModels: z.array(customModelMetadataSchema).optional(),
 				baseUrl: z.string().url().optional().or(z.literal('')),
 			}),
 		)
@@ -159,12 +161,16 @@ export const projectRoutes = {
 				);
 			}
 
+			const enabledModels = input.enabledModels ?? [];
+			const customModels = (input.customModels ?? []).filter((m) => enabledModels.includes(m.id));
+
 			const config = await llmConfigQueries.upsertProjectLlmConfig({
 				projectId: ctx.project.id,
 				provider: input.provider,
 				apiKey,
 				credentials: hasNewCredentials ? input.credentials! : undefined,
-				enabledModels: input.enabledModels ?? [],
+				enabledModels,
+				customModels,
 				baseUrl: input.baseUrl || null,
 			} as Parameters<typeof llmConfigQueries.upsertProjectLlmConfig>[0]);
 
@@ -174,6 +180,7 @@ export const projectRoutes = {
 				apiKeyPreview: config.apiKey ? config.apiKey.slice(0, 8) + '...' + config.apiKey.slice(-4) : null,
 				credentialPreviews: buildCredentialPreviews(config.credentials),
 				enabledModels: config.enabledModels ?? [],
+				customModels: config.customModels ?? [],
 				baseUrl: config.baseUrl ?? null,
 			};
 		}),
@@ -206,6 +213,7 @@ export const projectRoutes = {
 					modelSelection: config.modelSelection,
 					autoCreateUsersEnabled: config.autoCreateUsersEnabled,
 					autoCreateUsersDomains: config.autoCreateUsersDomains,
+					replyMode: config.replyMode,
 				}
 			: null;
 
@@ -265,6 +273,7 @@ export const projectRoutes = {
 				appTokenPreview: config.appToken ? config.appToken.slice(0, 4) + '...' + config.appToken.slice(-4) : '',
 				transportMode: config.transportMode,
 				modelSelection: config.modelSelection,
+				replyMode: config.replyMode,
 			};
 		}),
 
@@ -283,6 +292,15 @@ export const projectRoutes = {
 			);
 			const refreshedConfig = await slackConfigQueries.getProjectSlackConfig(ctx.project.id);
 			await slackService.syncProjectSocketMode(refreshedConfig, ctx.project.id);
+		}),
+
+	updateSlackReplyMode: adminProtectedProcedure
+		.input(z.object({ replyMode: z.enum(['thread', 'mention']) }))
+		.mutation(async ({ ctx, input }) => {
+			await slackConfigQueries.updateProjectSlackReplyMode(ctx.project.id, input.replyMode);
+			const refreshedConfig = await slackConfigQueries.getProjectSlackConfig(ctx.project.id);
+			await slackService.syncProjectSocketMode(refreshedConfig, ctx.project.id);
+			return { replyMode: input.replyMode };
 		}),
 
 	updateSlackAutoCreateUsers: adminProtectedProcedure

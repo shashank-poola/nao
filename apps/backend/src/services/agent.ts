@@ -11,13 +11,15 @@ import {
 	ModelMessage,
 	Output,
 	pruneMessages,
+	stepCountIs,
+	type StopCondition,
 	StreamTextResult,
 	ToolLoopAgent,
 	UIMessageStreamWriter,
 } from 'ai';
 import { z } from 'zod';
 
-import { CACHE_1H, CACHE_5M, LLM_PROVIDERS, ProviderModelResult } from '../agents/providers';
+import { LLM_PROVIDERS, ProviderModelResult } from '../agents/providers';
 import { getTools } from '../agents/tools';
 import { createWebSearchTools } from '../agents/tools/web-search';
 import { getConnections, getTableColumnsContent, getUserRules } from '../agents/user-rules';
@@ -38,10 +40,18 @@ import {
 	TokenCost,
 	TokenUsage,
 	UIMessage,
+	UIMessagePart,
 } from '../types/chat';
+import type { ModelCosts } from '../types/llm';
 import { Provider } from '../types/messaging-provider';
-import { ToolContext } from '../types/tools';
-import { convertToCost, convertToTokenUsage, findLastUserMessage, getLastUserMessageText } from '../utils/ai';
+import { McpToolContext, ToolContext } from '../types/tools';
+import {
+	convertToCost,
+	convertToTokenUsage,
+	findLastUserMessage,
+	getLastUserMessageText,
+	settleInterruptedToolParts,
+} from '../utils/ai';
 import { assertBudgetNotExceeded } from '../utils/budget';
 import { HandlerError } from '../utils/error';
 import {
@@ -52,6 +62,7 @@ import {
 	resolveProviderSettings,
 } from '../utils/llm';
 import { logger } from '../utils/logger';
+import { addPromptCache } from '../utils/prompt-cache';
 import { truncateMiddle } from '../utils/utils';
 import { compactionService } from './compaction';
 import { hasFeature, LICENSE_FEATURES } from './license.service';
@@ -73,11 +84,76 @@ export interface AgentRunResult {
 		toolCalls: ReadonlyArray<{ toolName: string; toolCallId: string; input: unknown }>;
 		toolResults: ReadonlyArray<{ toolCallId: string; output?: unknown }>;
 	}>;
+	/** All message parts (step-starts, tool calls, text) for persisting to the DB */
+	responseParts: UIMessagePart[];
 }
 
 export type AgentChat = Pick<DBChat, 'id' | 'projectId' | 'userId'> & {
 	forkMetadata?: ForkMetadata | null;
+	testMode?: boolean;
 };
+
+/** Dependencies a tool resolver receives once a run's context has been resolved. */
+export interface AgentToolsContext {
+	chat: AgentChat;
+	agentSettings: AgentSettings | null;
+	toolContext: ToolContext;
+	/** Web-search tools resolved from project settings, or null when web search is disabled. */
+	webTools: Record<string, unknown> | null;
+}
+
+/** Builds the tool set a run should expose. Callers pass one to `create` to customise tools. */
+export type AgentToolsResolver = (context: AgentToolsContext) => AgentTools | Promise<AgentTools>;
+
+/** Default tool set for interactive runs: all built-ins, MCP tools and web search. */
+export const defaultAgentTools: AgentToolsResolver = ({ chat, agentSettings, webTools }) =>
+	getTools(agentSettings, webTools ?? {}, { testMode: chat.testMode });
+
+export async function buildToolContext(opts: {
+	projectId: string;
+	userId: string;
+	chatId: string;
+	agentSettings?: AgentSettings | null;
+}): Promise<ToolContext> {
+	const base = await _buildContextBase(opts);
+	return { ...base, chatId: opts.chatId };
+}
+
+export async function buildMcpToolContext(opts: {
+	projectId: string;
+	userId: string;
+	agentSettings?: AgentSettings | null;
+}): Promise<McpToolContext> {
+	const base = await _buildContextBase(opts);
+	return { ...base, chatId: null };
+}
+
+async function _buildContextBase(opts: {
+	projectId: string;
+	userId: string;
+	agentSettings?: AgentSettings | null;
+}): Promise<Omit<ToolContext, 'chatId'>> {
+	const project = await projectQueries.retrieveProjectById(opts.projectId);
+	if (!project.path) {
+		throw new HandlerError('BAD_REQUEST', 'Project path does not exist.');
+	}
+	const agentSettings =
+		opts.agentSettings !== undefined ? opts.agentSettings : await projectQueries.getAgentSettings(opts.projectId);
+	const [envVars, azureAccessToken] = await Promise.all([
+		projectQueries.getEnvVars(opts.projectId),
+		hasFeature(LICENSE_FEATURES.sso).then((has) => (has ? getAzureAccessTokenForUser(opts.userId) : null)),
+	]);
+	return {
+		projectFolder: project.path,
+		userId: opts.userId,
+		projectId: opts.projectId,
+		agentSettings,
+		envVars,
+		azureAccessToken,
+		queryResults: new Map(),
+		generatedArtifacts: { charts: [], stories: [] },
+	};
+}
 
 export class AgentService {
 	private _agents = new Map<string, AgentManager>();
@@ -87,7 +163,43 @@ export class AgentService {
 		await assertBudgetNotExceeded(projectId, resolved.provider);
 	}
 
-	async create(chat: AgentChat, modelSelection?: LlmSelectedModel): Promise<AgentManager> {
+	/** Resolves the concrete model a run will use (project default when none is configured). */
+	async resolveModelSelection(projectId: string, modelSelection?: LlmSelectedModel): Promise<LlmSelectedModel> {
+		return this._getResolvedLlmSelectedModel(projectId, modelSelection);
+	}
+
+	async create(
+		chat: AgentChat,
+		modelSelection?: LlmSelectedModel,
+		options: {
+			/**
+			 * Resolves the tool set the run exposes. Defaults to `defaultAgentTools`
+			 * (all built-ins, MCP and web search). Pass a custom resolver to restrict
+			 * or extend the tools (e.g. automations, context recommendations).
+			 */
+			tools?: AgentToolsResolver;
+			/**
+			 * Removes `suggest_follow_ups` and switches the loop's stop condition
+			 * to a step counter. Used by non-interactive runs (e.g. automations)
+			 * where suggesting follow-ups would prematurely end the loop
+			 * before outbound integration tools fire.
+			 */
+			excludeFollowUps?: boolean;
+			/**
+			 * Step budget for the `excludeFollowUps` stop condition. Defaults to 20.
+			 * Longer analyses (e.g. context recommendations) raise this so the loop
+			 * is not cut off before it finishes recording.
+			 */
+			maxSteps?: number;
+			/**
+			 * Replaces the standard system prompt with a fully formed prompt. Skips the
+			 * default instructions, user rules (RULES.md), memories and connections —
+			 * used by runs where that context is the subject of the task rather than
+			 * authoritative guidance (e.g. context recommendations).
+			 */
+			systemPrompt?: string;
+		} = {},
+	): Promise<AgentManager> {
 		this._disposeAgent(chat.id);
 		const resolvedLlmSelectedModel = await this._getResolvedLlmSelectedModel(chat.projectId, modelSelection);
 		await assertBudgetNotExceeded(chat.projectId, resolvedLlmSelectedModel.provider);
@@ -95,7 +207,13 @@ export class AgentService {
 		const agentSettings = await projectQueries.getAgentSettings(chat.projectId);
 		const toolContext = await this._getToolContext(chat.projectId, chat.id, chat.userId, agentSettings);
 		const webTools = await this._resolveWebTools(chat.projectId, resolvedLlmSelectedModel.provider, agentSettings);
-		const agentTools = getTools(agentSettings, webTools ?? undefined);
+		const resolveTools = options.tools ?? defaultAgentTools;
+		const agentTools = await resolveTools({ chat, agentSettings, toolContext, webTools });
+		const stopWhen: StopCondition<AgentTools>[] = options.excludeFollowUps
+			? [stepCountIs(options.maxSteps ?? 20)]
+			: chat.testMode
+				? [hasToolCall('suggest_follow_ups')]
+				: [hasToolCall('suggest_follow_ups'), hasToolCall('clarification')];
 		const agent = new AgentManager(
 			chat,
 			modelConfig,
@@ -104,6 +222,8 @@ export class AgentService {
 			new AbortController(),
 			agentTools,
 			toolContext,
+			stopWhen,
+			options.systemPrompt,
 		);
 		this._agents.set(chat.id, agent);
 		return agent;
@@ -142,22 +262,7 @@ export class AgentService {
 		userId: string,
 		agentSettings: AgentSettings | null,
 	): Promise<ToolContext> {
-		const project = await projectQueries.retrieveProjectById(projectId);
-		if (!project.path) {
-			throw new HandlerError('BAD_REQUEST', 'Project path does not exist.');
-		}
-		const envVars = await projectQueries.getEnvVars(projectId);
-		const azureAccessToken = (await hasFeature(LICENSE_FEATURES.sso))
-			? await getAzureAccessTokenForUser(userId)
-			: null;
-		return {
-			projectFolder: project.path ?? '',
-			chatId,
-			agentSettings,
-			envVars,
-			azureAccessToken,
-			queryResults: new Map(),
-		};
+		return buildToolContext({ projectId, userId, chatId, agentSettings });
 	}
 
 	private _disposeAgent(chatId: string): void {
@@ -211,6 +316,8 @@ class AgentManager {
 		private readonly _abortController: AbortController,
 		private readonly _agentTools: AgentTools,
 		private readonly _toolContext: ToolContext,
+		stopWhen: StopCondition<AgentTools>[] = [hasToolCall('suggest_follow_ups'), hasToolCall('clarification')],
+		private readonly _systemPromptOverride?: string,
 	) {
 		this._agent = new ToolLoopAgent({
 			model: this._modelConfig.model,
@@ -218,7 +325,7 @@ class AgentManager {
 			tools: this._agentTools,
 			maxOutputTokens: MAX_OUTPUT_TOKENS,
 			prepareStep: async ({ messages }) => this._prepareStep(messages),
-			stopWhen: [hasToolCall('suggest_follow_ups')],
+			stopWhen,
 			experimental_context: this._toolContext,
 		});
 	}
@@ -246,6 +353,24 @@ class AgentManager {
 		// });
 
 		return { messages: this._addCache(this._pruneMessages(messages)) };
+	}
+
+	get generatedArtifacts(): ToolContext['generatedArtifacts'] {
+		return this._toolContext.generatedArtifacts;
+	}
+
+	get queryResultsSummary(): {
+		id: string;
+		columns: string[];
+		row_count: number;
+		preview: Record<string, unknown>[];
+	}[] {
+		return [...this._toolContext.queryResults.entries()].map(([id, result]) => ({
+			id,
+			columns: result.columns,
+			row_count: result.data.length,
+			preview: result.data.slice(0, 3),
+		}));
 	}
 
 	stream(
@@ -320,8 +445,9 @@ class AgentManager {
 				try {
 					const stopReason = e.isAborted ? 'interrupted' : e.finishReason;
 					const tokenUsage = await this._getTotalUsage(result);
+					const [settledMessage] = settleInterruptedToolParts([e.responseMessage]);
 					await chatQueries.upsertMessage({
-						...e.responseMessage,
+						...settledMessage,
 						chatId: this.chat.id,
 						stopReason,
 						error,
@@ -346,7 +472,8 @@ class AgentManager {
 		timezone?: string,
 		chatUrl?: string,
 	): Promise<ModelMessage[]> {
-		const uiMessagesWithStories = await this._syncStoryToolOutputs(uiMessages);
+		const settledUiMessages = settleInterruptedToolParts(uiMessages);
+		const uiMessagesWithStories = await this._syncStoryToolOutputs(settledUiMessages);
 		const uiMessagesWithStoryMode = this._addStoryMode(uiMessagesWithStories, mentions);
 		const uiMessagesWithSkills = this._addSkills(uiMessagesWithStoryMode, mentions);
 		const uiMessagesWithCitation = this._addCitationContext(uiMessagesWithSkills);
@@ -354,19 +481,7 @@ class AgentManager {
 		const uiMessagesWithCompaction = compactionService.useLastCompaction(uiMessagesWithDbContext);
 		const uiMessagesWithResolvedImages = await resolveImageUrls(uiMessagesWithCompaction);
 
-		const memories = await memoryService.safeGetUserMemories(this.chat.userId, this.chat.projectId, this.chat.id);
-		const userRules = getUserRules(this._toolContext.projectFolder);
-		const connections = getConnections(this._toolContext.projectFolder);
-		const skills = skillService.getSkills();
-		const basePrompt = renderToMarkdown(SystemPrompt({ memories, userRules, connections, skills, timezone }));
-		const renderedPrompt = provider
-			? renderToMarkdown(MessagingProviderSystemPrompt({ basePrompt, provider, chatUrl }))
-			: basePrompt;
-		const systemPrompt = this.chat.forkMetadata
-			? renderToMarkdown(
-					ChatForkContextPrompt({ basePrompt: renderedPrompt, forkMetadata: this.chat.forkMetadata }),
-				)
-			: renderedPrompt;
+		const systemPrompt = this._systemPromptOverride ?? (await this._buildSystemPrompt(provider, timezone, chatUrl));
 
 		const systemMessage: Omit<UIMessage, 'id'> = {
 			role: 'system',
@@ -381,6 +496,25 @@ class AgentManager {
 		);
 
 		return modelMessages;
+	}
+
+	/** Builds the standard system prompt (instructions + user rules + memories + connections). */
+	private async _buildSystemPrompt(provider?: Provider, timezone?: string, chatUrl?: string): Promise<string> {
+		const memories = await memoryService.safeGetUserMemories(this.chat.userId, this.chat.projectId, this.chat.id);
+		const userRules = getUserRules(this._toolContext.projectFolder);
+		const connections = getConnections(this._toolContext.projectFolder);
+		const skills = skillService.getSkills();
+		const basePrompt = renderToMarkdown(
+			SystemPrompt({ memories, userRules, connections, skills, timezone, testMode: this.chat.testMode }),
+		);
+		const renderedPrompt = provider
+			? renderToMarkdown(MessagingProviderSystemPrompt({ basePrompt, provider, chatUrl }))
+			: basePrompt;
+		return this.chat.forkMetadata
+			? renderToMarkdown(
+					ChatForkContextPrompt({ basePrompt: renderedPrompt, forkMetadata: this.chat.forkMetadata }),
+				)
+			: renderedPrompt;
 	}
 
 	/**
@@ -407,10 +541,16 @@ class AgentManager {
 		}
 
 		try {
-			const latestVersions = new Map<string, Awaited<ReturnType<typeof storyQueries.getLatestVersion>>>();
+			const latestVersions = new Map<
+				string,
+				Awaited<ReturnType<typeof storyQueries.getLatestVersionByChatAndSlug>>
+			>();
 			await Promise.all(
 				[...lastToolCallByStory.keys()].map(async (storyId) => {
-					latestVersions.set(storyId, await storyQueries.getLatestVersion(this.chat.id, storyId));
+					latestVersions.set(
+						storyId,
+						await storyQueries.getLatestVersionByChatAndSlug(this.chat.id, storyId),
+					);
 				}),
 			);
 
@@ -528,9 +668,23 @@ class AgentManager {
 		}
 	}
 
-	async generate(uiMessages: UIMessage[]): Promise<AgentRunResult> {
+	async generate(
+		uiMessages: UIMessage[],
+		opts: {
+			provider?: Provider;
+			timezone?: string;
+			chatUrl?: string;
+			costs?: ModelCosts;
+		} = {},
+	): Promise<AgentRunResult> {
 		const startTime = performance.now();
-		const messages = await this._buildModelMessages(uiMessages);
+		const messages = await this._buildModelMessages(
+			uiMessages,
+			undefined,
+			opts.provider,
+			opts.timezone,
+			opts.chatUrl,
+		);
 		try {
 			const result = await this._agent.generate({
 				messages,
@@ -539,7 +693,17 @@ class AgentManager {
 			const durationMs = Math.round(performance.now() - startTime);
 
 			const usage = convertToTokenUsage(result.totalUsage);
-			const cost = convertToCost(usage, this._modelSelection.provider, this._modelSelection.modelId);
+			const customModels = await llmConfigQueries
+				.getProjectLlmConfigByProvider(this.chat.projectId, this._modelSelection.provider)
+				.then((c) => c?.customModels ?? [])
+				.catch(() => []);
+			const cost = convertToCost(
+				usage,
+				this._modelSelection.provider,
+				this._modelSelection.modelId,
+				customModels,
+				opts.costs,
+			);
 			const finishReason = result.finishReason ?? 'stop';
 
 			return {
@@ -550,6 +714,7 @@ class AgentManager {
 				durationMs,
 				responseMessages: result.response.messages,
 				steps: result.steps as AgentRunResult['steps'],
+				responseParts: [],
 			};
 		} finally {
 			this._onDispose();
@@ -640,33 +805,14 @@ class AgentManager {
 
 	/**
 	 * Add Anthropic cache breakpoints to messages.
-	 * No-op for non-Anthropic providers.
+	 * Applies to direct Anthropic, Vertex Claude, and Bedrock Anthropic models.
 	 *
 	 * Cache strategy:
 	 * - System message: 1h TTL (instructions rarely change)
 	 * - Last message: 5m TTL (current step's leaf for agentic caching)
 	 */
 	private _addCache(messages: ModelMessage[]): ModelMessage[] {
-		if (messages.length === 0 || this._modelSelection.provider !== 'anthropic') {
-			return messages;
-		}
-
-		const withCache = (msg: ModelMessage, cache: typeof CACHE_1H | typeof CACHE_5M): ModelMessage => ({
-			...msg,
-			providerOptions: {
-				...msg.providerOptions,
-				anthropic: { ...msg.providerOptions?.anthropic, cacheControl: cache },
-			},
-		});
-
-		const lastIndex = messages.length - 1;
-		if (messages[0].role === 'system') {
-			messages[0] = withCache(messages[0], CACHE_1H);
-		}
-		if (messages.length > 1) {
-			messages[lastIndex] = withCache(messages[lastIndex], CACHE_5M);
-		}
-		return messages;
+		return addPromptCache(messages, this._modelSelection);
 	}
 
 	/**

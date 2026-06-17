@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { createFileRoute, useRouter } from '@tanstack/react-router';
+import { createFileRoute, Link, useRouter } from '@tanstack/react-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Folder, GitFork, Globe, Upload } from 'lucide-react';
+import { Folder, GitFork, Globe, TimerIcon, Upload } from 'lucide-react';
 import type { ForkMetadata } from '@nao/backend/chat';
 import type { SelectionData } from '@/components/highlight-bubble';
 import { NEW_CHAT_ID } from '@/lib/ai';
@@ -56,7 +56,10 @@ function ChatPage() {
 	const { chatId } = Route.useParams();
 	const chat = useChatQuery({ chatId });
 	const title = chat.data?.title;
-	const shareQuery = useQuery(trpc.sharedChat.getShareOptionsByChatId.queryOptions({ chatId: chatId ?? '' }));
+	const shareQuery = useQuery({
+		...trpc.sharedChat.getShareOptionsByChatId.queryOptions({ chatId }),
+		enabled: chat.isSuccess,
+	});
 	const isShared = !!shareQuery.data?.shareId;
 	const projects = useQuery(trpc.project.listForCurrentUser.queryOptions());
 	const isInMultipleProjects = (projects.data?.length ?? 0) > 1;
@@ -82,10 +85,12 @@ function ChatPage() {
 	const isSelectionFork =
 		chat.data?.forkMetadata?.type === 'chat_selection' || chat.data?.forkMetadata?.type === 'story_selection';
 	const headerCitation = buildHeaderCitation(isSelectionFork ? chat.data?.forkMetadata : undefined);
+	const automationId = chat.data?.automationRun?.automationId;
+	const isAutomationRunning = chat.data?.automationRun?.status === 'running';
 
 	useEffect(() => {
 		const openStorySlug = router.state.location.state.openStorySlug;
-		if (!openStorySlug || isLoadingMessages) {
+		if (chat.isError || !openStorySlug || isLoadingMessages) {
 			return;
 		}
 
@@ -98,7 +103,11 @@ function ChatPage() {
 			});
 		});
 		return () => clearTimeout(timer);
-	}, [isLoadingMessages]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [chat.isError, isLoadingMessages]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	if (chat.isError) {
+		return <ChatNotFoundState />;
+	}
 
 	return (
 		<SidePanelProvider
@@ -109,9 +118,9 @@ function ChatPage() {
 			close={sidePanel.close}
 		>
 			<SelectionProvider key={chatId}>
-				<div className='flex-1 flex min-w-0 bg-panel' ref={containerRef}>
+				<div className='flex-1 flex min-w-0 bg-background' ref={containerRef}>
 					<div className='flex flex-col h-full flex-1 min-w-0 overflow-hidden justify-center relative'>
-						<MobileHeader chatId={chatId} title={title} />
+						<MobileHeader chatId={chatId} title={title} automationId={automationId} />
 
 						<div className='group/header absolute flex items-center justify-between top-3 inset-x-4 z-10 max-md:hidden'>
 							<div className='min-w-0 max-w-[60%] flex flex-row gap-4'>
@@ -126,6 +135,20 @@ function ChatPage() {
 									<Badge variant='outline' className='gap-1 text-muted-foreground w-fit'>
 										<Folder />
 										<span className='truncate'>{chatProject.name}</span>
+									</Badge>
+								)}
+								{isAutomationRunning && (
+									<Badge variant='secondary' className='gap-1 text-muted-foreground w-fit'>
+										<Spinner className='size-3' />
+										<span>Running...</span>
+									</Badge>
+								)}
+								{automationId && (
+									<Badge variant='outline' className='gap-1 text-muted-foreground w-fit' asChild>
+										<Link to='/automations/$automationId' params={{ automationId }}>
+											<TimerIcon />
+											<span>Automation config</span>
+										</Link>
 									</Badge>
 								)}
 								{chat.data?.forkMetadata && (
@@ -166,8 +189,8 @@ function ChatPage() {
 						</div>
 
 						<div className='absolute inset-x-0 top-0 z-[5] pointer-events-none max-md:hidden'>
-							<div className='h-10 bg-panel' />
-							<div className='h-3 bg-gradient-to-b from-panel to-transparent' />
+							<div className='h-10 bg-background' />
+							<div className='h-3 bg-gradient-to-b from-background to-transparent' />
 						</div>
 
 						{isLoadingMessages ? (
@@ -199,6 +222,27 @@ function ChatPage() {
 			</SelectionProvider>
 			<ShareChatDialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen} chatId={chatId} />
 		</SidePanelProvider>
+	);
+}
+
+function ChatNotFoundState() {
+	return (
+		<div className='flex h-full flex-1 flex-col min-w-0 overflow-hidden justify-center bg-panel'>
+			<MobileHeader />
+			<div className='flex flex-1 items-center justify-center p-6'>
+				<div className='flex max-w-sm flex-col items-center gap-4 text-center'>
+					<div className='space-y-2'>
+						<h1 className='text-lg font-medium tracking-tight'>Chat not found</h1>
+						<p className='text-sm text-muted-foreground'>
+							This chat may have been deleted, moved, or you may not have access to it.
+						</p>
+					</div>
+					<Button asChild variant='secondary'>
+						<Link to='/'>Start a new chat</Link>
+					</Button>
+				</div>
+			</div>
+		</div>
 	);
 }
 

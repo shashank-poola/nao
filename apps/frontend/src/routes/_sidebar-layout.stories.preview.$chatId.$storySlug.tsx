@@ -11,15 +11,18 @@ import { StoryChartEmbed, StoryTableEmbed } from '@/components/story-embeds';
 import { HighlightBubble } from '@/components/highlight-bubble';
 import { SegmentList } from '@/components/story-rendering';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { trpc } from '@/main';
+import { StoryContentLoading } from '@/components/side-panel/story-content-loading';
 import { StoryDownload } from '@/components/story-download';
 import { SelectionProvider } from '@/contexts/text-selection';
+import { StoryChartEditProvider } from '@/contexts/story-chart-edit';
 import { chatPendingCitationStore } from '@/stores/chat-pending-citation';
 import { useChatActivity } from '@/hooks/use-chat-activity';
 
 export const Route = createFileRoute('/_sidebar-layout/stories/preview/$chatId/$storySlug')({
 	component: StoryPreviewPage,
+	pendingComponent: StoryContentLoading,
 });
 
 function StoryPreviewPage() {
@@ -56,48 +59,43 @@ function StoryPreviewPage() {
 	);
 
 	const cachedAt = story.cachedAt ? new Date(story.cachedAt as unknown as string) : null;
+	const canEditCharts = !story.archivedAt;
 
 	return (
-		<div className='flex flex-col flex-1 h-full overflow-hidden bg-panel min-w-0'>
+		<div className='flex flex-col flex-1 h-full overflow-hidden bg-background min-w-0'>
 			<header className='flex items-center gap-3 border-b px-4 py-3 md:px-6 md:py-4 shrink-0 bg-background'>
 				<h1 className='text-base font-medium truncate'>{story.title}</h1>
 				{story.isLive && (
 					<div className='flex items-center gap-1.5'>
-						<TooltipProvider>
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<div className='flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700'>
-										<Activity className='size-3' />
-										<span>Live</span>
-									</div>
-								</TooltipTrigger>
-								<TooltipContent>
-									{cachedAt
-										? `Data cached ${cachedAt.toLocaleString()}`
-										: 'Live story with fresh data'}
-								</TooltipContent>
-							</Tooltip>
-						</TooltipProvider>
-						<TooltipProvider>
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant='ghost-muted'
-										size='icon-xs'
-										onClick={() => refreshMutation.mutate({ chatId, storySlug })}
-										disabled={refreshMutation.isPending}
-										aria-label='Refresh data'
-									>
-										{refreshMutation.isPending ? (
-											<Loader2 className='size-3.5 animate-spin' />
-										) : (
-											<RefreshCw className='size-3.5' />
-										)}
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent>Refresh data</TooltipContent>
-							</Tooltip>
-						</TooltipProvider>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<div className='flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700'>
+									<Activity className='size-3' />
+									<span>Live</span>
+								</div>
+							</TooltipTrigger>
+							<TooltipContent>
+								{cachedAt ? `Data cached ${cachedAt.toLocaleString()}` : 'Live story with fresh data'}
+							</TooltipContent>
+						</Tooltip>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant='ghost-muted'
+									size='icon-xs'
+									onClick={() => refreshMutation.mutate({ chatId, storySlug })}
+									disabled={refreshMutation.isPending}
+									aria-label='Refresh data'
+								>
+									{refreshMutation.isPending ? (
+										<Loader2 className='size-3.5 animate-spin' />
+									) : (
+										<RefreshCw className='size-3.5' />
+									)}
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Refresh data</TooltipContent>
+						</Tooltip>
 					</div>
 				)}
 				<div className='ml-auto flex items-center gap-1.5 shrink-0'>
@@ -129,14 +127,39 @@ function StoryPreviewPage() {
 
 			<SelectionProvider key={storySlug}>
 				<HighlightBubble onAsk={handleSelectionAsk} disabled={isChatRunning} />
-				<PreviewContent
-					code={story.code}
-					queryData={story.queryData as QueryDataMap | null}
-					chatId={chatId}
-					cacheSchedule={story.cacheSchedule}
-				/>
+				{renderWithChartEditProvider(
+					canEditCharts,
+					{ chatId, storySlug, storyTitle: story.title, storyCode: story.code },
+					<PreviewContent
+						code={story.code}
+						queryData={story.queryData as QueryDataMap | null}
+						chatId={chatId}
+						cacheSchedule={story.cacheSchedule}
+					/>,
+				)}
 			</SelectionProvider>
 		</div>
+	);
+}
+
+function renderWithChartEditProvider(
+	enabled: boolean,
+	params: { chatId: string; storySlug: string; storyTitle: string; storyCode: string },
+	children: React.ReactNode,
+) {
+	if (!enabled) {
+		return children;
+	}
+
+	return (
+		<StoryChartEditProvider
+			chatId={params.chatId}
+			storySlug={params.storySlug}
+			storyTitle={params.storyTitle}
+			storyCode={params.storyCode}
+		>
+			{children}
+		</StoryChartEditProvider>
 	);
 }
 

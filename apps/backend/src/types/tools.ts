@@ -1,3 +1,5 @@
+import type { displayChart } from '@nao/shared/tools';
+
 import { AgentSettings } from './agent-settings';
 
 export interface QueryResult {
@@ -5,9 +7,16 @@ export interface QueryResult {
 	data: Record<string, unknown>[];
 }
 
+export interface GeneratedArtifacts {
+	charts: displayChart.Input[];
+	stories: { id: string; title: string }[];
+}
+
 export interface ToolContext {
 	projectFolder: string;
 	chatId: string;
+	userId: string;
+	projectId: string;
 	agentSettings: AgentSettings | null;
 	envVars: Record<string, string>;
 	/**
@@ -23,4 +32,7 @@ export interface ToolContext {
 	 * to message history and caches the result back into this map.
 	 */
 	queryResults: Map<string, QueryResult>;
+	generatedArtifacts: GeneratedArtifacts;
 }
+
+export type McpToolContext = Omit<ToolContext, 'chatId'> & { chatId: null };

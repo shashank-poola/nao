@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from pydantic import Field
 
@@ -28,7 +28,60 @@ def _is_excluded_schema(value: object) -> bool:
     return not schema or schema in {"none", "null"} or schema in EXCLUDED_SCHEMAS or schema.startswith("pg_")
 
 
+def _build_basic_auth(user: str, password: str):
+    from trino.auth import BasicAuthentication
+
+    return BasicAuthentication(user, password)
+
+
 class TrinoDatabaseContext(DatabaseContext):
+    """Trino context with table/column comment discovery via information_schema."""
+
+    def _trino_catalog(self) -> str:
+        return str(cast(Any, self._conn).current_catalog)
+
+    def description(self) -> str | None:
+        catalog = self._trino_catalog()
+        query = f"""
+            SELECT comment
+            FROM system.metadata.table_comments
+            WHERE catalog_name = '{catalog}'
+                AND schema_name = '{self._schema}'
+                AND table_name = '{self._table_name}'
+        """.strip()
+        try:
+            row = cast(Any, self._conn).raw_sql(query).fetchone()
+            if row and row[0] is not None:
+                text = str(row[0]).strip()
+                if text:
+                    return text
+        except Exception:
+            pass
+        return None
+
+    def columns(self) -> list[dict[str, Any]]:
+        cols = super().columns()
+        try:
+            table_qualified = f"{self._quote(self._schema)}.{self._quote(self._table_name)}"
+            query = f"DESCRIBE {table_qualified}"
+            rows = cast(Any, self._conn).raw_sql(query).fetchall()
+            # Trino DESCRIBE returns columns: Column | Type | Extra | Comment | ...
+            # We'll use the first (column name) and fourth (comment) columns.
+            descs = {}
+            for row in rows:
+                if row and len(row) >= 4 and row[0] and row[3]:
+                    # Row: (name, type, extra, comment, ...)
+                    descs[str(row[0])] = str(row[3]).strip()
+            lower = {k.lower(): v for k, v in descs.items()}
+            for col in cols:
+                name = col["name"]
+                desc = descs.get(name) or lower.get(name.lower())
+                if desc:
+                    col["description"] = desc
+        except Exception:
+            pass
+        return cols
+
     def _array_unnest_join(self, table_sql: str, col_sql: str, alias: str) -> str:
         return f"{table_sql} CROSS JOIN UNNEST({col_sql}) AS t({alias})"
 
@@ -123,7 +176,7 @@ class TrinoConfig(DatabaseConfig):
             kwargs["schema"] = self.schema_name
 
         if self.password:
-            kwargs["password"] = self.password
+            kwargs["auth"] = _build_basic_auth(self.user, self.password)
 
         return ibis.trino.connect(**kwargs)
 

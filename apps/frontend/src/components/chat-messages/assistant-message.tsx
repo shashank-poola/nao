@@ -19,12 +19,14 @@ export const AssistantMessage = memo(
 		showLoader,
 		isSettled,
 		isRunning,
+		isLastMessage,
 		storyIntroMessageId,
 	}: {
 		message: UIMessage;
 		showLoader: boolean;
 		isSettled: boolean;
 		isRunning: boolean;
+		isLastMessage: boolean;
 		storyIntroMessageId: string | undefined;
 	}) => {
 		const chatId = useChatId();
@@ -32,6 +34,7 @@ export const AssistantMessage = memo(
 		const hasContent = useMemo(() => checkAssistantMessageHasContent(message), [message]);
 		const isCompacting = message.parts.at(-1)?.type === 'data-compactionSummaryStarted';
 		const showActions = message.id !== storyIntroMessageId;
+		const hasFeedback = message.feedback != null;
 
 		if (!message.parts.length && isSettled) {
 			return null;
@@ -53,8 +56,14 @@ export const AssistantMessage = memo(
 							message={message}
 							chatId={chatId}
 							className={cn(
-								'opacity-0 group-last/message:opacity-100 group-hover:opacity-100 transition-opacity duration-200',
-								isRunning ? 'group-last/message:hidden' : '',
+								'transition-opacity duration-200',
+								isLastMessage
+									? isRunning
+										? 'hidden'
+										: 'opacity-100'
+									: hasFeedback
+										? 'opacity-100'
+										: 'opacity-0 group-hover:opacity-100',
 							)}
 						/>
 					)}

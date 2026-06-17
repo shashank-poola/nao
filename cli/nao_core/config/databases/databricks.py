@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import Field
@@ -26,7 +27,9 @@ class DatabricksDatabaseContext(DatabaseContext):
 
     def partition_columns(self) -> list[str]:
         try:
-            return _get_databricks_partition_columns(self._conn, self._schema, self._table_name)
+            return self._filter_excluded_names(
+                _get_databricks_partition_columns(self._conn, self._schema, self._table_name)
+            )
         except Exception:
             logger.debug("Failed to fetch partition columns for %s.%s", self._schema, self._table_name)
             return []
@@ -116,6 +119,10 @@ class DatabricksConfig(DatabaseConfig):
         default=None,
         description="Default schema (optional)",
     )
+    temp_schema: str | None = Field(
+        default=None,
+        description="A schema you have write access to, used for temporary storage during queries (optional)",
+    )
 
     @classmethod
     def promptConfig(cls) -> "DatabricksConfig":
@@ -126,6 +133,9 @@ class DatabricksConfig(DatabaseConfig):
         access_token = ask_text("Access token:", password=True, required_field=True)
         catalog = ask_text("Unity Catalog name (optional):")
         schema = ask_text("Default schema (optional):")
+        temp_schema = ask_text(
+            "Schema with write access for temporary storage (optional, needed if your default schema is read-only):"
+        )
 
         return DatabricksConfig(
             name=name,
@@ -134,6 +144,7 @@ class DatabricksConfig(DatabaseConfig):
             access_token=access_token,  # type: ignore
             catalog=catalog,
             schema_name=schema,
+            temp_schema=temp_schema,
         )
 
     def connect(self) -> BaseBackend:
@@ -153,8 +164,15 @@ class DatabricksConfig(DatabaseConfig):
         if self.catalog:
             kwargs["catalog"] = self.catalog
 
-        if self.schema_name:
+        if self.temp_schema:
+            kwargs["schema"] = self.temp_schema
+        elif self.schema_name:
             kwargs["schema"] = self.schema_name
+
+        # Ibis names its temporary UC memtable volume after the OS username, which
+        # breaks when the username contains dots (interpreted as UC path separators).
+        # Use the connection name instead — already user-controlled and safe.
+        kwargs["memtable_volume"] = f"{re.sub(r'[^a-zA-Z0-9_-]', '_', self.name)}-{os.getpid()}"
 
         return ibis.databricks.connect(**kwargs)
 
@@ -171,7 +189,7 @@ class DatabricksConfig(DatabaseConfig):
     def create_context(self, conn: BaseBackend, schema: str, table_name: str) -> DatabricksDatabaseContext:
         return DatabricksDatabaseContext(conn, schema, table_name)
 
-    def get_query_history_sql(self, days: int) -> str | None:
+    def _default_query_history_sql(self, days: int) -> str | None:
         return (
             f"SELECT statement AS query_text "
             f"FROM system.query.history "
@@ -188,7 +206,7 @@ class DatabricksConfig(DatabaseConfig):
         try:
             conn = self.connect()
             if self.schema_name:
-                tables = conn.list_tables()
+                tables = conn.list_tables(database=self.schema_name)
                 return True, f"Connected successfully ({len(tables)} tables found)"
             if list_databases := getattr(conn, "list_databases", None):
                 schemas = list_databases()

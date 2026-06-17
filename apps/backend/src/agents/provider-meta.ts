@@ -12,10 +12,22 @@ export const PROVIDER_META: ProviderMetaMap = {
 		summaryModelId: 'claude-sonnet-4-5',
 		models: [
 			{
+				id: 'claude-fable-5',
+				name: 'Claude Fable 5',
+				contextWindow: 300_000,
+				costPerM: { inputNoCache: 10, inputCacheRead: 1, inputCacheWrite: 12.5, output: 50 },
+			},
+			{
+				id: 'claude-opus-4-8',
+				name: 'Claude Opus 4.8',
+				contextWindow: 200_000,
+				costPerM: { inputNoCache: 5, inputCacheRead: 0.5, inputCacheWrite: 6.25, output: 25 },
+			},
+			{
 				id: 'claude-opus-4-7',
 				name: 'Claude Opus 4.7',
 				contextWindow: 200_000,
-				costPerM: { inputNoCache: 3, inputCacheRead: 0.3, inputCacheWrite: 3.75, output: 15 },
+				costPerM: { inputNoCache: 5, inputCacheRead: 0.5, inputCacheWrite: 6.25, output: 25 },
 			},
 			{
 				id: 'claude-sonnet-4-6',
@@ -58,11 +70,17 @@ export const PROVIDER_META: ProviderMetaMap = {
 		summaryModelId: 'gpt-4.1-mini',
 		models: [
 			{
-				id: 'gpt-5.4',
-				name: 'GPT 5.4',
+				id: 'gpt-5.5',
+				name: 'GPT 5.5',
 				default: true,
 				contextWindow: 400_000,
-				costPerM: { inputNoCache: 1.75, inputCacheRead: 0.175, inputCacheWrite: 0, output: 14 },
+				costPerM: { inputNoCache: 5, inputCacheRead: 0.5, inputCacheWrite: 0, output: 30 },
+			},
+			{
+				id: 'gpt-5.4',
+				name: 'GPT 5.4',
+				contextWindow: 400_000,
+				costPerM: { inputNoCache: 2.5, inputCacheRead: 0.25, inputCacheWrite: 0, output: 15 },
 			},
 			{
 				id: 'gpt-5.2',
@@ -92,8 +110,8 @@ export const PROVIDER_META: ProviderMetaMap = {
 		summaryModelId: 'gemini-2.5-flash',
 		models: [
 			{
-				id: 'gemini-3-pro-preview',
-				name: 'Gemini 3 Pro',
+				id: 'gemini-3.1-pro-preview',
+				name: 'Gemini 3.1 Pro',
 				default: true,
 				contextWindow: 1_000_000,
 				costPerM: { inputNoCache: 2, inputCacheRead: 0.2, inputCacheWrite: 0, output: 12 },
@@ -195,8 +213,21 @@ export const PROVIDER_META: ProviderMetaMap = {
 	bedrock: {
 		auth: {
 			apiKey: 'optional',
-			alternativeEnvVars: ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],
-			hint: 'Optional — uses AWS credentials from environment if not provided',
+			// Any one satisfied bundle is enough. First bundle is static IAM creds
+			// (access key + secret, both required). The rest are ambient signals
+			// resolved by the AWS SDK chain: ECS task role, EKS IRSA, named profile,
+			// or an explicit AWS_USE_INSTANCE_CREDENTIALS=1 opt-in for EC2 instance
+			// profiles / default shared-credentials profile (no env footprint).
+			alternativeEnvVars: [
+				['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],
+				['AWS_PROFILE'],
+				['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'],
+				['AWS_CONTAINER_CREDENTIALS_FULL_URI'],
+				['AWS_WEB_IDENTITY_TOKEN_FILE'],
+				['AWS_SDK_LOAD_CONFIG'],
+				['AWS_USE_INSTANCE_CREDENTIALS'],
+			],
+			hint: 'Optional — leave empty to use AWS credentials from environment, IAM task role, IRSA, or instance profile',
 			extraFields: [
 				{ name: 'region', label: 'AWS Region', envVar: 'AWS_REGION', placeholder: 'us-east-1' },
 				{ name: 'accessKeyId', label: 'Access Key ID', envVar: 'AWS_ACCESS_KEY_ID' },

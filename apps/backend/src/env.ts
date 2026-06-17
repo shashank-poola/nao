@@ -36,14 +36,38 @@ const envSchema = z.object({
 	GITHUB_CLIENT_ID: z.string().optional(),
 	GITHUB_CLIENT_SECRET: z.string().optional(),
 	GITHUB_ALLOWED_USERS: z.string().optional(),
+	GITHUB_SSO: z
+		.enum(['true', 'false'])
+		.optional()
+		.default('false')
+		.transform((val) => val === 'true'),
 
 	AZURE_AD_CLIENT_ID: z.string().optional(),
 	AZURE_AD_CLIENT_SECRET: z.string().optional(),
 	AZURE_AD_TENANT_ID: z.string().optional(),
+	AZURE_AD_TOKEN_SCOPE: z.string().optional(),
 
-	CLOUD_GITHUB_CLIENT_ID: z.string().optional(),
-	CLOUD_GITHUB_CLIENT_SECRET: z.string().optional(),
-	DEFAULT_USER_ROLE: z.enum(['admin', 'user']).default('user'),
+	ENABLE_USER_LOGIN: z
+		.enum(['true', 'false'])
+		.optional()
+		.default('true')
+		.transform((val) => val === 'true'),
+	ENABLE_USER_SIGNUP: z
+		.enum(['true', 'false'])
+		.optional()
+		.default('false')
+		.transform((val) => val === 'true'),
+
+	DEFAULT_USER_ROLE: z.enum(['admin', 'user', 'viewer']).default('user'),
+
+	OIDC_PROVIDER_ID: z.string().optional(),
+	OIDC_PROVIDER_NAME: z.string().optional(),
+	OIDC_DISCOVERY_URL: z.string().optional(),
+	OIDC_CLIENT_ID: z.string().optional(),
+	OIDC_CLIENT_SECRET: z.string().optional(),
+	OIDC_SCOPES: z.string().optional(),
+	OIDC_AUTH_DOMAINS: z.string().optional(),
+	OIDC_PKCE: z.string().optional(),
 
 	SMTP_PASSWORD: z.string().optional(),
 	SMTP_HOST: z.string().optional(),
@@ -71,6 +95,18 @@ const envSchema = z.object({
 	POSTHOG_DISABLED: z
 		.enum(['true', 'false'])
 		.optional()
+		.transform((val) => val === 'true'),
+
+	BETA_AUTOMATIONS_ENABLED: z
+		.enum(['true', 'false'])
+		.optional()
+		.default('true')
+		.transform((val) => val === 'true'),
+
+	BETA_CONTEXT_RECOMMENDATIONS_ENABLED: z
+		.enum(['true', 'false'])
+		.optional()
+		.default('false')
 		.transform((val) => val === 'true'),
 });
 
@@ -113,6 +149,9 @@ export function __reloadEnvForTesting(): void {
 
 export const isCloud = env.NAO_MODE === 'cloud';
 export const isSelfHosted = env.NAO_MODE === 'self-hosted';
+
+const normalizedBaseUrl = env.BETTER_AUTH_URL.replace(/\/+$/, '');
+export const MCP_SERVER_URL = `${normalizedBaseUrl}/mcp`;
 
 export function noProjectMessage(): string {
 	return isCloud

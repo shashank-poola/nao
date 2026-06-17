@@ -45,6 +45,11 @@ export type NewOrgMember = typeof sqliteSchema.orgMember.$inferInsert;
 export type DBProjectSavedPrompt = typeof sqliteSchema.projectSavedPrompt.$inferSelect;
 export type NewProjectSavedPrompt = typeof sqliteSchema.projectSavedPrompt.$inferInsert;
 
+export type DBAutomation = typeof sqliteSchema.automation.$inferSelect;
+export type NewAutomation = typeof sqliteSchema.automation.$inferInsert;
+export type DBAutomationRun = typeof sqliteSchema.automationRun.$inferSelect;
+export type NewAutomationRun = typeof sqliteSchema.automationRun.$inferInsert;
+
 export type DBMemory = typeof sqliteSchema.memories.$inferSelect;
 export type DBNewMemory = typeof sqliteSchema.memories.$inferInsert;
 
@@ -73,19 +78,59 @@ export type NewStoryVersion = typeof sqliteSchema.storyVersion.$inferInsert;
 export type DBStoryDataCache = typeof sqliteSchema.storyDataCache.$inferSelect;
 export type NewStoryDataCache = typeof sqliteSchema.storyDataCache.$inferInsert;
 
+export type DBActivity = typeof sqliteSchema.activity.$inferSelect;
+export type NewActivity = typeof sqliteSchema.activity.$inferInsert;
+export type ActivityType = DBActivity['type'];
+export type ActivityStatus = DBActivity['status'];
+export type ActivityTrigger = DBActivity['trigger'];
+
 export type DBProjectProviderBudget = typeof sqliteSchema.projectProviderBudget.$inferSelect;
 export type NewProjectProviderBudget = typeof sqliteSchema.projectProviderBudget.$inferInsert;
 
 export type DBLlmInference = typeof sqliteSchema.llmInference.$inferSelect;
 export type NewLlmInference = typeof sqliteSchema.llmInference.$inferInsert;
 
+export type DBContextRecommendationRun = typeof sqliteSchema.contextRecommendationRun.$inferSelect;
+export type NewContextRecommendationRun = typeof sqliteSchema.contextRecommendationRun.$inferInsert;
+
+export type DBContextRecommendationConfig = typeof sqliteSchema.contextRecommendationConfig.$inferSelect;
+export type NewContextRecommendationConfig = typeof sqliteSchema.contextRecommendationConfig.$inferInsert;
+
+export type DBContextRecommendation = typeof sqliteSchema.contextRecommendation.$inferSelect;
+export type NewContextRecommendation = typeof sqliteSchema.contextRecommendation.$inferInsert;
+
 export type DBLog = typeof sqliteSchema.log.$inferSelect;
 export type NewLog = typeof sqliteSchema.log.$inferInsert;
+
+export type DBMcpCallLog = typeof sqliteSchema.mcpCallLog.$inferSelect;
+export type NewMcpCallLog = typeof sqliteSchema.mcpCallLog.$inferInsert;
+
+export type DBMcpQueryData = typeof sqliteSchema.mcpQueryData.$inferSelect;
+export type NewMcpQueryData = typeof sqliteSchema.mcpQueryData.$inferInsert;
+
+export type DBMcpChartEmbed = typeof sqliteSchema.mcpChartEmbed.$inferSelect;
+export type NewMcpChartEmbed = typeof sqliteSchema.mcpChartEmbed.$inferInsert;
 
 export type DBMessageImage = typeof sqliteSchema.messageImage.$inferSelect;
 export type NewMessageImage = typeof sqliteSchema.messageImage.$inferInsert;
 
 export type DBApiKey = typeof sqliteSchema.apiKey.$inferSelect;
 export type NewApiKey = typeof sqliteSchema.apiKey.$inferInsert;
+
+export type DBScheduledJob = typeof sqliteSchema.scheduledJob.$inferSelect;
+export type NewScheduledJob = typeof sqliteSchema.scheduledJob.$inferInsert;
+export type ScheduledJobStatus = DBScheduledJob['status'];
+
+export type DBBrandingConfig = typeof sqliteSchema.brandingConfig.$inferSelect;
+export type NewBrandingConfig = typeof sqliteSchema.brandingConfig.$inferInsert;
+
+export type DBFavorite = typeof sqliteSchema.favorite.$inferSelect;
+export type NewFavorite = typeof sqliteSchema.favorite.$inferInsert;
+
+export type DBStoryFolder = typeof sqliteSchema.storyFolder.$inferSelect;
+export type NewStoryFolder = typeof sqliteSchema.storyFolder.$inferInsert;
+
+export type DBStoryFolderItem = typeof sqliteSchema.storyFolderItem.$inferSelect;
+export type NewStoryFolderItem = typeof sqliteSchema.storyFolderItem.$inferInsert;
 
 export default allSchema as typeof sqliteSchema;

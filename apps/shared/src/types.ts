@@ -39,7 +39,7 @@ export type LlmSelectedModel = {
 
 export type SummarySegment =
 	| { type: 'text'; content: string }
-	| { type: 'chart'; chartType: string; title: string }
+	| { type: 'chart'; chartType: string; title: string; kpiCount?: number }
 	| { type: 'table'; title: string }
 	| { type: 'grid'; cols: number; children: SummarySegment[] };
 
@@ -70,6 +70,18 @@ export type BudgetPeriod = (typeof BUDGET_PERIODS)[number];
 
 export const SHARE_VISIBILITY = ['project', 'specific'] as const;
 export type Visibility = (typeof SHARE_VISIBILITY)[number];
+
+export type StorySharingInfo = {
+	visibility: Visibility;
+	sharedWithCount: number;
+	isPinned: boolean;
+};
+
+export const FOLDER_VISIBILITY = ['private', 'public'] as const;
+export type FolderVisibility = (typeof FOLDER_VISIBILITY)[number];
+
+export const FOLDER_SYSTEM_TYPE = ['private_folder', 'shared_with_me'] as const;
+export type FolderSystemType = (typeof FOLDER_SYSTEM_TYPE)[number];
 
 export type ProjectChatReplayFacets<R extends string = string> = {
 	userNames: string[];
@@ -112,8 +124,8 @@ export interface CitationData {
 
 export type MessageBubble = { role: 'user' | 'assistant'; charCount: number };
 
-export const CHAT_GROUP_BY_OPTIONS = ['star', 'date', 'project', 'ownership', 'sourcePlatform', 'none'];
-export const CHAT_FILTER_OPTIONS = ['all', 'mine', 'starred', 'shared', 'shared_with_me'];
+export const CHAT_GROUP_BY_OPTIONS = ['star', 'date', 'project', 'ownership', 'sourcePlatform', 'none'] as const;
+export const CHAT_FILTER_OPTIONS = ['all', 'mine', 'starred', 'shared', 'shared_with_me'] as const;
 
 export type ChatGroupBy = (typeof CHAT_GROUP_BY_OPTIONS)[number];
 export type ChatFilterType = (typeof CHAT_FILTER_OPTIONS)[number];
@@ -131,10 +143,28 @@ export interface GroupedChatItem {
 }
 
 export interface ChatGroup {
-	label: string;
+	label: string | null;
 	chats: GroupedChatItem[];
 }
 
 export interface GroupedChatListResponse {
 	groups: ChatGroup[];
 }
+
+export const MCP_EMBED_KINDS = ['story', 'chart'] as const satisfies readonly string[];
+
+export type McpEmbedKind = (typeof MCP_EMBED_KINDS)[number];
+
+export const MCP_EMBED_SANDBOX_HTML_FIELD = {
+	story: 'sandboxStoryHtml',
+	chart: 'sandboxChartHtml',
+} as const satisfies Record<McpEmbedKind, string>;
+
+export type EmbedTokenPayload = {
+	type: McpEmbedKind;
+	resourceId: string;
+	projectId: string;
+	exp: number;
+};
+
+export type StoryPanelDisplayMode = 'grid' | 'lines';

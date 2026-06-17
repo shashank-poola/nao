@@ -267,6 +267,76 @@
       "when": 1776332134291,
       "tag": "0037_add_citation_column",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1777983477674,
+      "tag": "0038_scheduling_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1778071315178,
+      "tag": "0039_mcp_endpoint",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1778541547672,
+      "tag": "0040_branding_config",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1779201882027,
+      "tag": "0041_automations",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1779270688350,
+      "tag": "0042_mcp_query_data_and_chart_embed",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1779278958357,
+      "tag": "0043_custom-models-id",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1779815389972,
+      "tag": "0044_activity",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1779815389973,
+      "tag": "0045_migrate_mcp_endpoint_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1780404033287,
+      "tag": "0046_folder-management",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1781092652332,
+      "tag": "0047_recommendations",
+      "breakpoints": true
     }
   ]
 }
