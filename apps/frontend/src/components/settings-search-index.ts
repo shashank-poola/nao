@@ -38,6 +38,13 @@ export const settingsSearchIndex: SettingsSearchEntry[] = [
 	{
 		page: '/settings/account',
 		pageLabel: 'Account',
+		title: 'GitHub',
+		description: 'Connect your GitHub account for automations.',
+		keywords: ['github', 'automations', 'automation', 'issue', 'pull request'],
+	},
+	{
+		page: '/settings/account',
+		pageLabel: 'Account',
 		title: 'Danger Zone',
 		description: 'Delete your account or perform other destructive actions.',
 		keywords: ['delete account', 'remove'],
@@ -203,24 +210,28 @@ export const settingsSearchIndex: SettingsSearchEntry[] = [
 		section: 'MCP Modes',
 		title: 'Sub-agent mode',
 		description:
-			'External agents use nao as a subagent to answer analytics questions like "How many users do we have?".',
-		keywords: ['ask_nao', 'agent', 'analytics'],
+			"Exposes ask_nao — delegates the full analytics task to nao's agent. The reasoning trace is saved as a chat in the nao UI.",
+		keywords: ['ask_nao', 'agent', 'analytics', 'delegate', 'sub-agent'],
 	},
 	{
 		page: '/settings/mcp-endpoint',
 		pageLabel: 'MCP Endpoint',
 		section: 'MCP Modes',
 		title: 'Context-layer mode',
-		description: 'Let agents use nao as a context-layer to browse nao filesystem, execute SQL, create charts, etc.',
-		keywords: ['execute_sql', 'sql', 'query'],
-	},
-	{
-		page: '/settings/mcp-endpoint',
-		pageLabel: 'MCP Endpoint',
-		section: 'MCP Modes',
-		title: 'Story mode',
-		description: 'Let external agents create and manage nao stories (create, read, update, archive, etc.).',
-		keywords: ['stories', 'dashboard', 'report', 'crud'],
+		description:
+			'Exposes ls_nao_context, grep_nao_context, read_nao_context, execute_sql, create_story, update_story — the client MCP drives the workflow step by step.',
+		keywords: [
+			'ls_nao_context',
+			'grep_nao_context',
+			'read_nao_context',
+			'execute_sql',
+			'create_story',
+			'update_story',
+			'sql',
+			'query',
+			'story',
+			'context',
+		],
 	},
 
 	// ── Project > Slack ──────────────────────────────────────
@@ -238,6 +249,15 @@ export const settingsSearchIndex: SettingsSearchEntry[] = [
 		title: 'Auto-create users from Slack',
 		description: 'Automatically provision nao accounts for Slack senders whose email domain is in the allowlist.',
 		keywords: ['sign up', 'provision', 'onboarding', 'domain', 'allowlist', 'whitelist', 'auto create'],
+		adminOnly: true,
+	},
+	{
+		page: '/settings/project/slack',
+		pageLabel: 'Slack',
+		title: 'Reply only when mentioned',
+		description:
+			'Control whether nao answers every message in active Slack threads or only messages that tag the bot.',
+		keywords: ['reply mode', 'mentions', 'tagged', 'thread replies', 'bot behavior'],
 		adminOnly: true,
 	},
 	{
@@ -353,6 +373,35 @@ export const settingsSearchIndex: SettingsSearchEntry[] = [
 		title: 'Chats Replay',
 		description: 'Replay and review past chat conversations.',
 		keywords: ['history', 'conversation', 'replay', 'review'],
+		adminOnly: true,
+	},
+
+	// ── Context Recommendations ──────────────────────────────
+	{
+		page: '/settings/recommendations',
+		pageLabel: 'Recommendations',
+		title: 'Context Recommendations',
+		description: 'Review and act on context recommendations for your project.',
+		keywords: [
+			'context',
+			'recommendations',
+			'acknowledge',
+			'snooze',
+			'dismiss',
+			'insights',
+			'frequency',
+			'schedule',
+			'daily',
+			'weekly',
+			'monthly',
+			'repository',
+			'github',
+			'pull request',
+			'yolo',
+			'auto',
+			'automatic',
+			'pr',
+		],
 		adminOnly: true,
 	},
 

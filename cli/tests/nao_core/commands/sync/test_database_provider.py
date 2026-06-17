@@ -7,8 +7,12 @@ from unittest.mock import MagicMock, patch
 from rich.console import Console
 
 from nao_core.commands.sync.cleanup import DatabaseSyncState
-from nao_core.commands.sync.providers.databases.provider import DatabaseSyncProvider
+from nao_core.commands.sync.providers.databases.provider import (
+    DatabaseSyncProvider,
+    _fetch_query_history,
+)
 from nao_core.config.base import NaoConfig
+from nao_core.config.databases.duckdb import DuckDBConfig
 from nao_core.deps import MissingDependencyError
 
 
@@ -96,6 +100,36 @@ class TestDatabaseSyncProvider:
             "database=clickhouse-numia",
         ]
 
+    @patch("nao_core.commands.sync.providers.databases.provider.cleanup_stale_paths", return_value=0)
+    @patch("nao_core.commands.sync.providers.databases.provider.sync_database")
+    def test_sync_runs_databases_with_threads(self, mock_sync_database, _mock_cleanup_stale_paths, tmp_path: Path):
+        provider = DatabaseSyncProvider()
+
+        db1 = MagicMock()
+        db1.name = "db1"
+        db1.type = "duckdb"
+        db1.templates = [MagicMock(value="columns")]
+        db1.get_database_name.return_value = "db1"
+
+        db2 = MagicMock()
+        db2.name = "db2"
+        db2.type = "duckdb"
+        db2.templates = [MagicMock(value="columns")]
+        db2.get_database_name.return_value = "db2"
+
+        def _sync_database(db, *_args, **_kwargs):
+            state = DatabaseSyncState(db_path=tmp_path / db.name)
+            state.add_schema("main")
+            state.add_table("main", "orders")
+            return state
+
+        mock_sync_database.side_effect = _sync_database
+
+        result = provider.sync([db1, db2], tmp_path, threads=2)
+
+        assert result.details == {"datasets": 2, "tables": 2, "removed": 0}
+        assert mock_sync_database.call_count == 2
+
     @patch(
         "nao_core.commands.sync.providers.databases.provider.get_database_folder_names", return_value=["database=dev"]
     )
@@ -122,3 +156,57 @@ class TestDatabaseSyncProvider:
         text = output.getvalue()
         assert "ibis-framework[postgres]" in text
         assert "nao-core[redshift]" in text
+
+
+class TestFetchQueryHistoryFiltering:
+    """Verify that exclude patterns are applied after fetching query history."""
+
+    def _build_cursor(self, queries: list[str]) -> MagicMock:
+        cursor = MagicMock(spec=["description", "fetchall"])
+        cursor.description = [("query_text",)]
+        cursor.fetchall.return_value = [(q,) for q in queries]
+        return cursor
+
+    def test_exclude_patterns_drop_matching_queries(self):
+        db = DuckDBConfig(
+            name="duck",
+            path=":memory:",
+            query_history_sql="SELECT q AS query_text FROM logs",
+            query_history_exclude_patterns=[r"SYSTEM\$", r"^SELECT CURRENT_SESSION"],
+        )
+        conn = MagicMock()
+        conn.raw_sql.return_value = self._build_cursor(
+            [
+                "SELECT * FROM users",
+                "CALL SYSTEM$GET_RECENT_IN_APP_NOTIFICATIONS()",
+                "SELECT CURRENT_SESSION()",
+                "SELECT * FROM orders",
+            ]
+        )
+
+        result = _fetch_query_history(db, conn)
+
+        assert result == ["SELECT * FROM users", "SELECT * FROM orders"]
+        conn.raw_sql.assert_called_once_with("SELECT q AS query_text FROM logs")
+
+    def test_no_exclude_patterns_returns_all_queries(self):
+        db = DuckDBConfig(
+            name="duck",
+            path=":memory:",
+            query_history_sql="SELECT q AS query_text FROM logs",
+        )
+        conn = MagicMock()
+        conn.raw_sql.return_value = self._build_cursor(["SELECT 1", "SELECT 2"])
+
+        result = _fetch_query_history(db, conn)
+
+        assert result == ["SELECT 1", "SELECT 2"]
+
+    def test_returns_empty_when_no_query_history_sql(self):
+        db = DuckDBConfig(name="duck", path=":memory:")
+        conn = MagicMock()
+
+        result = _fetch_query_history(db, conn)
+
+        assert result == []
+        conn.raw_sql.assert_not_called()

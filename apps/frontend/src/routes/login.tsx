@@ -1,14 +1,16 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate, useRouter } from '@tanstack/react-router';
 import { useForm } from '@tanstack/react-form';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { signIn } from '@/lib/auth-client';
 import { AuthForm, FormTextField } from '@/components/auth-form';
+import { getSafeRedirectPath } from '@/lib/safe-redirect';
 import { trpc } from '@/main';
 
 export const Route = createFileRoute('/login')({
 	validateSearch: (search: Record<string, unknown>) => ({
 		error: typeof search.error === 'string' ? search.error : undefined,
+		redirect: typeof search.redirect === 'string' ? search.redirect : undefined,
 	}),
 	component: Login,
 });
@@ -23,7 +25,8 @@ function buildOAuthAuthorizeUrl() {
 
 function Login() {
 	const navigate = useNavigate();
-	const { error: oauthError } = Route.useSearch();
+	const router = useRouter();
+	const { error: oauthError, redirect } = Route.useSearch();
 	const [serverError, setServerError] = useState<string | undefined>(oauthError);
 	const isSmtpSetup = useQuery(trpc.authConfig.smtp.isSetup.queryOptions());
 	const config = useQuery(trpc.system.getPublicConfig.queryOptions());
@@ -32,6 +35,7 @@ function Login() {
 	const isUserSignupEnabled = config.data?.enableUserSignup;
 
 	const oauthAuthorizeUrl = buildOAuthAuthorizeUrl();
+	const safeRedirect = getSafeRedirectPath(redirect);
 
 	const form = useForm({
 		defaultValues: { email: '', password: '' },
@@ -44,6 +48,8 @@ function Login() {
 				onSuccess: () => {
 					if (oauthAuthorizeUrl) {
 						window.location.href = oauthAuthorizeUrl;
+					} else if (safeRedirect) {
+						router.history.push(safeRedirect);
 					} else {
 						navigate({ to: '/' });
 					}
@@ -56,11 +62,11 @@ function Login() {
 	return (
 		<AuthForm
 			form={form}
-			title='Log In'
-			submitText='Log In'
+			title='Log in'
+			submitText='Log in'
 			serverError={serverError}
 			displaySocialProviders={true}
-			socialCallbackUrl={oauthAuthorizeUrl ?? undefined}
+			socialCallbackUrl={oauthAuthorizeUrl ?? safeRedirect ?? undefined}
 			displayEmailPasswordForm={isUserLoginEnabled}
 			emailPasswordDisabledMessage='Email and password login is disabled. Use a configured sign-in provider to continue.'
 			footer={
@@ -69,21 +75,37 @@ function Login() {
 						Don&apos;t have an account?{' '}
 						<Link
 							to='/signup'
-							search={{ error: undefined }}
-							className='text-foreground underline underline-offset-4'
+							search={{ error: undefined, redirect: safeRedirect ?? undefined }}
+							className='text-violet underline underline-offset-2'
 						>
-							Sign up
+							Create an account
 						</Link>
 					</>
 				) : undefined
 			}
 		>
-			<FormTextField form={form} name='email' type='email' placeholder='Email' />
-			<FormTextField form={form} name='password' type='password' placeholder='Password' />
+			<FormTextField
+				form={form}
+				name='email'
+				type='email'
+				title='Email'
+				placeholder='joe@gmail.com'
+				className='mb-6'
+			/>
+			<FormTextField
+				form={form}
+				name='password'
+				type='password'
+				title='Password'
+				className={isUserLoginEnabled && isSmtpSetup.data ? 'mb-2' : 'mb-10'}
+			/>
 			{isUserLoginEnabled && isSmtpSetup.data && (
-				<div className='text-right'>
-					<Link to='/forgot-password' className='text-sm underline underline-offset-4'>
-						Forgot password?
+				<div className='text-right mb-8'>
+					<Link
+						to='/forgot-password'
+						className='text-xs text-foreground font-medium underline underline-offset-2'
+					>
+						Forgot password
 					</Link>
 				</div>
 			)}
